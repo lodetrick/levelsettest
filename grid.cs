@@ -1,9 +1,7 @@
-using static System.Math;
-
 public class Grid {
     public struct Vector2 {
-        float x;
-        float y;
+        public float x {get;}
+        public float y {get;}
 
         public Vector2(float x, float y) {
             this.x = x;
@@ -16,13 +14,11 @@ public class Grid {
         public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
         public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
         public static Vector2 operator *(float a, Vector2 b) => new Vector2(a * b.x, a * b.y);
-
-        public Vector2 slice() => new Vector2(System.Math.Abs(this.x % 1),System.Math.Abs(this.y % 1));
     }
     public struct Vector3 {
-        float x;
-        float y;
-        float z;
+        public float x {get;}
+        public float y {get;}
+        public float z {get;}
 
         public Vector3(float x, float y, float z) {
             this.x = x;
@@ -36,8 +32,6 @@ public class Grid {
         public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3(a.x + b.x, a.y + b.y, a.z + b.z);
         public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3(a.x - b.x, a.y - b.y, a.z - b.z);
         public static Vector3 operator *(float a, Vector3 b) => new Vector3(a * b.x, a * b.y, a * b.z);
-
-        public Vector3 slice() => new Vector3(System.Math.Abs(this.x % 1),System.Math.Abs(this.y % 1),System.Math.Abs(this.z % 1));
     }
     //MAC Grid
     private float[,] pressure;
@@ -61,14 +55,23 @@ public class Grid {
     private Vector2 VelocityOnGrid(int i, int j) {
         return new Vector2((u_vel[i,j] + u_vel[i+1,j]) / 2.0f,(v_vel[i,j]+v_vel[i,j+1]) / 2.0f);
     }
+
+    private float Lerp(float a, float b, float s) {
+        return (1 - s) * a + s * b;
+    }
     private Vector2 LerpVelocity(Vector2 position) {
-        int i = System.Math.Floor(position.x);
-        int j = System.Math.Floor(position.y);
-        Vector2 s = position - new Vector2(i,j);
-        return new Vector2((1-s.x)*u_vel[i,j]+s.x*u_vel[i+1][j],(1-s.y)*v_vel[i,j] + s.y*v_vel[i,j+1]);
+        int i = (int)(position.x+0.5f);
+        int j = (int)(position.y+0.5f);
+        return new Vector2(Lerp(u_vel[i,j],u_vel[i+1,j],position.x - i + 0.5f),
+                           Lerp(v_vel[i,j],v_vel[i,j+1],position.y - j + 0.5f));
     }
     private float LerpPressure(Vector2 position) {
-        return 0;
+        int i = (int)(position.x);
+        int j = (int)(position.y);
+        float s_x = position.x - i;
+        return Lerp(Lerp(pressure[i,j  ],pressure[i+1,j  ],s_x),
+                    Lerp(pressure[i,j+1],pressure[i+1,j+1],s_x),
+                    position.y - j);
     }
     private Vector2 CubicVelocity(Vector2 position) {
         return new Vector2(42,42);

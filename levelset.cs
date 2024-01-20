@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using static VectorFuncs;
 
 public class LevelSet {
     private float[,] distance_field;
@@ -56,11 +57,68 @@ public class LevelSet {
         }
     }
 
-    public Grid.Vector2 FindClosest(Grid.Vector2 position) {
-        return new Grid.Vector2(0,0);
+    private Vector2 GetGradient(Vector2 position) {
+        return new Vector2(VectorFuncs.CentralDifferenceX(position,distance_field),
+                           VectorFuncs.CentralDifferenceY(position,distance_field));
     }
 
-    public Grid.Vector2 FindClosest(float x, float y) {
-        return new Grid.Vector2(0,0);
+    public Vector2 FindClosest(Vector2 position) {
+        int N = 3;
+        int M = 3;
+        float epsilon = 0.00001f;
+
+        Vector2 p = position;
+        float distance = VectorFuncs.LerpFloatField(position,distance_field);
+        Vector2 dir = GetGradient(position);
+
+        for (int i = 0; i < N; i++) {
+            float alpha = 1;
+            for (int j = 0; j < M; j++) {
+                Vector2 q = p - alpha * distance * dir;
+                float q_distance = VectorFuncs.LerpFloatField(q, distance_field);
+                if (System.Math.Abs(q_distance) < System.Math.Abs(distance)) {
+                    p = q;
+                    distance = q_distance;
+                    dir = GetGradient(q);
+                    if (System.Math.Abs(q_distance) < epsilon) {
+                        return p;
+                    }
+                }
+                else {
+                    alpha *= 0.7f;
+                }
+            }
+        }
+        return p;
+    }
+
+    public Vector2 FindClosest(float x, float y) {
+        int N = 3;
+        int M = 3;
+        float epsilon = 0.00001f;
+
+        Vector2 p = new Vector2(x,y);
+        float distance = VectorFuncs.LerpFloatField(p, distance_field);
+        Vector2 dir = GetGradient(p);
+
+        for (int i = 0; i < N; i++) {
+            float alpha = 1;
+            for (int j = 0; j < M; j++) {
+                Vector2 q = p - alpha * distance * dir;
+                float q_distance = VectorFuncs.LerpFloatField(q,distance_field);
+                if (System.Math.Abs(q_distance) < System.Math.Abs(distance)) {
+                    p = q;
+                    distance = q_distance;
+                    dir = GetGradient(q);
+                    if (System.Math.Abs(q_distance) < epsilon) {
+                        return p;
+                    }
+                }
+                else {
+                    alpha *= 0.7f;
+                }
+            }
+        }
+        return p;
     }
 }

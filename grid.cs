@@ -1,10 +1,12 @@
 using static VectorFuncs;
+using static System.MathF;
 
 public class Grid {
     //MAC Grid
     private float[,] pressure;
     private float[,] u_vel;
     private float[,] v_vel;
+    private Vector2 bodyforce;
     private float timestep;
     public static float grid_length {get; set;}
     private int width,height;
@@ -24,18 +26,45 @@ public class Grid {
     private Vector2 VelocityOnGrid(int i, int j) {
         return new Vector2((u_vel[i,j] + u_vel[i+1,j]) / 2.0f,(v_vel[i,j]+v_vel[i,j+1]) / 2.0f);
     }
-    private Vector2 CubicVelocity(Vector2 position) {
-        return new Vector2(42,42);
-    }
-    private float CubicPressure(Vector2 position) {
-        return 0;
-    }
 
     private void SemiLagrangian() {
-        //loop over every position in grid
-            //Vector2 x_P = RungeKutta2(position)
-            //set new values at the position to the old values at x_P
-            //use cubic interpolation
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                Vector2 x_Pu = RungeKutta2(new Vector2(i - 0.5f,j));
+                u_vel[i,j] = VectorFuncs.CubicFloatField(x_Pu,u_vel); ////////
+
+                Vector2 x_Pv = RungeKutta2(new Vector2(i,j - 0.5f));
+                v_vel[i,j] = VectorFuncs.CubicFloatField(x_Pv,v_vel); ////////
+            }
+        }
+
+        for (int i = 0; i < height; i++) {
+            Vector2 x_Pul = RungeKutta2(new Vector2(width + 0.5f,i));
+            u_vel[width,i] = VectorFuncs.CubicFloatField(x_Pul,u_vel); ////////
+        }
+
+        for (int i = 0; i < width; i++) {
+            Vector2 x_Pvl = RungeKutta2(new Vector2(i, height + 0.5f));
+            v_vel[i,height] = VectorFuncs.CubicFloatField(x_Pvl,v_vel); ////////
+        }
+    }
+
+    //Forward Euler
+    private void BodyForces() {
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < height; j++) {
+                u_vel[i,j] += bodyforce.x * timestep; ////////////////////////
+                v_vel[i,j] += bodyforce.y * timestep; ////////////////////////
+            }
+        }
+
+        for (int i = 0; i < height; i++) {
+            u_vel[width,i]  += bodyforce.x * timestep; ///////////////////////
+        }
+
+        for (int i = 0; i < width; i++) {
+            v_vel[i,height] += bodyforce.y * timestep; ///////////////////////
+        }
     }
 
     //2nd Order Runge-Kutta Method
@@ -44,11 +73,14 @@ public class Grid {
         return position - timestep * VectorFuncs.LerpVelocityField(x_mid, u_vel, v_vel);
     }
 
+    private float MaxSpeed() {
+        return 0;
+    }
+
     //Time step for Semi-Langrangian
     private float MaxAdvectTimestep() {
-        //vel_max = max(vel.length) + sqrt(5*grid_length*gravity)
-        //timestep = (5 * grid_length) / (vel_max)
+        float vel_max = Sqrt(MaxSpeed()) + Sqrt(5*grid_length*bodyforce.Length());
+        return (5 * grid_length) / (vel_max);
         // that is the max for the advect step
-        return 0;
     }
 }

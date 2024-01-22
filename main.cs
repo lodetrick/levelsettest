@@ -57,78 +57,8 @@ public partial class main : Node2D
 		}
 
 		//fast sweeping method
-		FastSweeping(gridHeight,gridWidth);/*
-		//+x
-		for (int iter = 0; iter < 2; iter++)
-		{
-			for (int i = 1; i < gridHeight; i++)
-			{
-				for (int j = 0; j < gridWidth; j++)
-				{
-					if (closestPointIndex[i-1,j].X != -1)
-					{
-						float distance = (closestPointIndex[i-1,j] - new Vector2I(i,j)).Length();
-						if (distance < gridDistance[i,j])
-						{
-							gridDistance[i,j] = distance;
-							closestPointIndex[i,j] = closestPointIndex[i-1,j];
-						}
-					}
-				}
-			}
-			
-			//+y
-			for (int j = 1; j < gridHeight; j++)
-			{
-				for (int i = 0; i < gridWidth; i++)
-				{
-					if (closestPointIndex[i,j-1].X != -1)
-					{
-						float distance = (closestPointIndex[i,j-1] - new Vector2I(i,j)).Length();
-						if (distance < gridDistance[i,j])
-						{
-							gridDistance[i,j] = distance;
-							closestPointIndex[i,j] = closestPointIndex[i,j-1];
-						}
-					}
-				}
-			}
-
-			//-x
-			for (int i = gridHeight - 2; i >= 0; i--)
-			{
-				for (int j = 0; j < gridWidth; j++)
-				{
-					if (closestPointIndex[i+1,j].X != -1)
-					{
-						float distance = (closestPointIndex[i+1,j] - new Vector2I(i,j)).Length();
-						if (distance < gridDistance[i,j])
-						{
-							gridDistance[i,j] = distance;
-							closestPointIndex[i,j] = closestPointIndex[i+1,j];
-						}
-					}
-				}
-			}
-
-			//-y
-			for (int j = gridHeight - 2; j >= 0; j--)
-			{
-				for (int i = 0; i < gridWidth; i++)
-				{
-					if (closestPointIndex[i,j+1].X != -1)
-					{
-						float distance = (closestPointIndex[i,j+1] - new Vector2I(i,j)).Length();
-						if (distance < gridDistance[i,j])
-						{
-							gridDistance[i,j] = distance;
-							closestPointIndex[i,j] = closestPointIndex[i,j+1];
-							//GD.Print(distance);
-						}
-					}
-				}
-			}
-		}*/
+		FastSweeping(gridHeight,gridWidth);
+		
 		GD.Print("Computed");
 		ImageFromSet(gridDistance);
 		UpdateImage();

@@ -16,21 +16,37 @@ public class LevelSet {
     public void Clear() {
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
-                distance_field[i,j] = int.MaxValue;
+                distance_field[i,j] = float.MaxValue;
             }
         }
     }
 
+    public float[,] GetField() {
+        return distance_field;
+    }
+
+    public float GetDistance(Vector2 position) {
+        return VectorFuncs.LerpFloatField(position,distance_field);
+    }
+
+    public float GetDistance(float x, float y) {
+        return VectorFuncs.LerpFloatField(x,y,distance_field);
+    }
+
     public void AddBox(float x0, float y0, float x1, float y1) {
+        UnionBox(Math.Min(x0,x1),Math.Min(y0,y1),Math.Max(x0,x1),Math.Max(y0,y1));
+    }
+
+    public void UnionBox(float x0, float y0, float x1, float y1) {
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
                 // if i,j is in box
                 if (x0 < i && i < x1 && y0 < j && j < y1) {
                     if (distance_field[i,j] < 0) {
-                        distance_field[i,j] = System.Math.Max(distance_field[i,j],new float[] { x0-i, i-x1, y0-j, j-y1 }.Max());
+                        distance_field[i,j] = Math.Max(distance_field[i,j], new float[] { x0-i, i-x1, y0-j, j-y1}.Max());
                     }
                     else {
-                        distance_field[i,j] = new float[] { x0-i, i-x1, y0-j, j-y1 }.Max();
+                        distance_field[i,j] = new float[] { x0-i, i-x1, y0-j, j-y1, -1.0f * distance_field[i,j]}.Max();
                     }
                 }
                 else {
@@ -43,15 +59,22 @@ public class LevelSet {
                     else {
                         p = (float)(i);
                     }
+
                     if (j < y0) {
                         q = y0;
-                    } else if (i > y1) {
+                    } else if (j > y1) {
                         q = y1;
                     }
                     else {
                         q = (float)(j);
                     }
-                    distance_field[i,j] = (float)Math.Min(Math.Sqrt((i-p)*(i-p) + (j-q)*(j-q)),distance_field[i,j]);
+                    //make negative if already negative
+                    if (distance_field[i,j] < 0) {
+                        distance_field[i,j] = (float)Math.Max(-1.0f * Math.Sqrt((i-p)*(i-p) + (j-q)*(j-q)),distance_field[i,j]);
+                    }
+                    else {
+                        distance_field[i,j] = (float)Math.Min(Math.Sqrt((i-p)*(i-p) + (j-q)*(j-q)),distance_field[i,j]);
+                    }
                 }
             }
         }
@@ -71,16 +94,20 @@ public class LevelSet {
         float distance = VectorFuncs.LerpFloatField(position,distance_field);
         Vector2 dir = GetGradient(position);
 
+        if (Math.Abs(distance) < epsilon) {
+            return position;
+        }
+
         for (int i = 0; i < N; i++) {
             float alpha = 1;
             for (int j = 0; j < M; j++) {
                 Vector2 q = p - alpha * distance * dir;
                 float q_distance = VectorFuncs.LerpFloatField(q, distance_field);
-                if (System.Math.Abs(q_distance) < System.Math.Abs(distance)) {
+                if (Math.Abs(q_distance) < Math.Abs(distance)) {
                     p = q;
                     distance = q_distance;
                     dir = GetGradient(q);
-                    if (System.Math.Abs(q_distance) < epsilon) {
+                    if (Math.Abs(q_distance) < epsilon) {
                         return p;
                     }
                 }
@@ -95,22 +122,26 @@ public class LevelSet {
     public Vector2 FindClosest(float x, float y) {
         int N = 3;
         int M = 3;
-        float epsilon = 0.00001f;
+        float epsilon = 0.001f;
 
         Vector2 p = new Vector2(x,y);
         float distance = VectorFuncs.LerpFloatField(p, distance_field);
         Vector2 dir = GetGradient(p);
+
+        if (Math.Abs(distance) < epsilon) {
+            return p;
+        }
 
         for (int i = 0; i < N; i++) {
             float alpha = 1;
             for (int j = 0; j < M; j++) {
                 Vector2 q = p - alpha * distance * dir;
                 float q_distance = VectorFuncs.LerpFloatField(q,distance_field);
-                if (System.Math.Abs(q_distance) < System.Math.Abs(distance)) {
+                if (Math.Abs(q_distance) < Math.Abs(distance)) {
                     p = q;
                     distance = q_distance;
                     dir = GetGradient(q);
-                    if (System.Math.Abs(q_distance) < epsilon) {
+                    if (Math.Abs(q_distance) < epsilon) {
                         return p;
                     }
                 }

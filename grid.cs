@@ -11,6 +11,10 @@ public class Grid {
     public static float grid_length {get; set;}
     private int width,height;
 
+    static Grid() {
+        grid_length = 1f;
+    }
+
     public Grid(int width, int height,float _grid_length) {
         //instantiates MAC grid, creates base values
         grid_length = _grid_length;

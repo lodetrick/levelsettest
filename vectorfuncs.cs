@@ -106,10 +106,15 @@ public class VectorFuncs {
                            LerpFloatField(position + offset,v_vel));
     }
 
-    public static float CentralDifferenceX(Vector2 position,  float[,] float_field) {
+    public static float BigCentralDifferenceX(Vector2 position,  float[,] float_field) {
         return (float_field[(int)position.x + 1,(int)position.y] - float_field[(int)position.x - 1,(int)position.y]) / (2.0f * Grid.grid_length);
     }
-    public static float CentralDifferenceY(Vector2 position,  float[,] float_field) {
+    public static float BigCentralDifferenceY(Vector2 position,  float[,] float_field) {
         return (float_field[(int)position.x,(int)position.y + 1] - float_field[(int)position.x,(int)position.y - 1]) / (2.0f * Grid.grid_length);
+    }
+
+    public static Vector2 GradientFloatField(Vector2 position, float[,] float_field) {
+        return new Vector2(BigCentralDifferenceX(position,float_field),
+                           BigCentralDifferenceY(position,float_field));
     }
 }

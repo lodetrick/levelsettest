@@ -1,8 +1,9 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using NumFlat;
 
-public partial class main : Node2D
+public partial class Main : Node2D
 {
 	private HashSet<Vector2I> inputPoints;
 	private float[,] gridDistance;

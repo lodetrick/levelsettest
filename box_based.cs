@@ -53,7 +53,6 @@ public partial class box_based : Node2D
 		if (circ_ready) {
 			DrawArc(circ_position,circ_dist0,0,10,20,Colors.Red  ,5);
 			DrawArc(circ_position,circ_dist1,0,10,20,Colors.White,5);
-			GD.Print("Drawing");
 		}
 	}
 	public void BlankImage()

@@ -80,11 +80,6 @@ public class LevelSet {
         }
     }
 
-    private Vector2 GetGradient(Vector2 position) {
-        return new Vector2(VectorFuncs.CentralDifferenceX(position,distance_field),
-                           VectorFuncs.CentralDifferenceY(position,distance_field));
-    }
-
     public Vector2 FindClosest(Vector2 position) {
         int N = 3;
         int M = 3;
@@ -92,7 +87,7 @@ public class LevelSet {
 
         Vector2 p = position;
         float distance = VectorFuncs.LerpFloatField(position,distance_field);
-        Vector2 dir = GetGradient(position);
+        Vector2 dir = VectorFuncs.GradientFloatField(position,distance_field);
 
         if (Math.Abs(distance) < epsilon) {
             return position;
@@ -106,7 +101,7 @@ public class LevelSet {
                 if (Math.Abs(q_distance) < Math.Abs(distance)) {
                     p = q;
                     distance = q_distance;
-                    dir = GetGradient(q);
+                    dir = VectorFuncs.GradientFloatField(q,distance_field);
                     if (Math.Abs(q_distance) < epsilon) {
                         return p;
                     }
@@ -126,7 +121,7 @@ public class LevelSet {
 
         Vector2 p = new Vector2(x,y);
         float distance = VectorFuncs.LerpFloatField(p, distance_field);
-        Vector2 dir = GetGradient(p);
+        Vector2 dir = VectorFuncs.GradientFloatField(p,distance_field);
 
         if (Math.Abs(distance) < epsilon) {
             return p;
@@ -140,7 +135,7 @@ public class LevelSet {
                 if (Math.Abs(q_distance) < Math.Abs(distance)) {
                     p = q;
                     distance = q_distance;
-                    dir = GetGradient(q);
+                    dir = VectorFuncs.GradientFloatField(q,distance_field);
                     if (Math.Abs(q_distance) < epsilon) {
                         return p;
                     }

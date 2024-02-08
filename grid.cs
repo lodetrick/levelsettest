@@ -1,5 +1,6 @@
 using static VectorFuncs;
 using static System.MathF;
+using NumFlat;
 
 public class Grid {
     //MAC Grid
@@ -70,6 +71,8 @@ public class Grid {
             v_vel[i,height] += bodyforce.y * timestep; ///////////////////////
         }
     }
+
+    //Pressure Gradient Update : Given Pressure, Apply it
 
     //2nd Order Runge-Kutta Method
     private Vector2 RungeKutta2(Vector2 position) {

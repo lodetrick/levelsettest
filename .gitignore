@@ -1,3 +1,4 @@
 # Godot 4+ specific ignores
 .godot/
 .vscode
+OpenBLAS-0.3.26

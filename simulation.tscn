@@ -1,0 +1,66 @@
+[gd_scene load_steps=4 format=3 uid="uid://ircfd3xgrxyt"]
+
+[ext_resource type="Script" path="res://simulation_gui.cs" id="1_6qeqq"]
+[ext_resource type="Texture2D" uid="uid://bwm5xhcwkojmh" path="res://empty.png" id="1_475qe"]
+[ext_resource type="PackedScene" uid="uid://qch5cou6xcln" path="res://2dcam.tscn" id="1_gj34s"]
+
+[node name="Simulation" type="Node2D"]
+script = ExtResource("1_6qeqq")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = -1
+texture_filter = 1
+texture = ExtResource("1_475qe")
+centered = false
+
+[node name="Camera2D" parent="." instance=ExtResource("1_gj34s")]
+position = Vector2(2.08165e-12, 2.08165e-12)
+only_movement = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+
+[node name="ZoomInButton" type="Button" parent="CanvasLayer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+text = "+"
+
+[node name="ZoomOutButton" type="Button" parent="CanvasLayer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "-"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+
+[node name="StepButton" type="Button" parent="CanvasLayer/MarginContainer/HBoxContainer"]
+layout_mode = 2
+text = "Step"
+
+[node name="StepButton2" type="Button" parent="CanvasLayer/MarginContainer/HBoxContainer"]
+layout_mode = 2
+text = "Step 10"
+
+[connection signal="pressed" from="CanvasLayer/MarginContainer/VBoxContainer/ZoomInButton" to="Camera2D" method="_on_zoom_in_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/MarginContainer/VBoxContainer/ZoomOutButton" to="Camera2D" method="_on_zoom_out_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/MarginContainer/HBoxContainer/StepButton" to="." method="Step"]
+[connection signal="pressed" from="CanvasLayer/MarginContainer/HBoxContainer/StepButton2" to="." method="StepTen"]

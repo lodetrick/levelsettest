@@ -29,11 +29,11 @@ public partial class box_based : Node2D
 	public void ComputeClosest(Vector2 position)
 	{	
 		//GD.Print("Start:");
-		//GD.Print(position);
+		//
 		if (0 < position.X && position.X < 1024 && 0 < position.Y && position.Y < 1024)
 		{
 			VectorFuncs.Vector2 closest = ls.FindClosest(position.X,position.Y);
-			//GD.Print(new Vector2(closest.x,closest.y));
+			GD.Print(ls.GetDistance(position.X,position.Y));
 			(GetNode("Target") as Sprite2D).Show();
 			(GetNode("Target") as Sprite2D).Position = new Vector2(closest.x,closest.y);
 
@@ -94,7 +94,7 @@ public partial class box_based : Node2D
 		if (0 < position.X && position.X < 1024 && 0 < position.Y && position.Y < 1024)
 		{
 			if (first_point.Y >= 0) {
-				ls.AddBox(first_point.X,first_point.Y,position.X, position.Y);
+				ls.AddBox(first_point.X,first_point.Y,position.X, position.Y, Input.IsKeyLabelPressed(Godot.Key.Alt) ? -1f : 1f);
 				first_point = Vector2.Up;
 				ImageFromSet(ls.GetField());
 				UpdateImage();

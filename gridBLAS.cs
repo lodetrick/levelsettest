@@ -390,7 +390,7 @@ public class GridBLAS {
         var holder = 0.0;
 
         while (pr < sz.Length) {
-            if (sls[pr] > 0) { // material is liquid
+            if (sls[pr] > 0) { // material is liquid (needs revising)
                 holder = sr[pr] - sax[pr - width] * spre[pr - width] * sz[pr - width]
                                 - say[pr - 1    ] * spre[pr - 1    ] * sz[pr - 1    ];
                 sz[pr] = holder * spre[pr]; 
@@ -446,15 +446,23 @@ public class GridBLAS {
         var say = Ay.Memory.Span;
         var sz = z.Memory.Span;
         var pr = width;
+        
+        double ril = sr[pr-1];
+        double rcu = sr[pr  ];
+        double rir = sr[pr+1];
 
         while (pr < sz.Length - width)
         {
-            sz[pr] = sr[pr      ] * sad[pr      ]
+            sz[pr] = rcu * sad[pr      ]
                    + sr[pr+width] * sax[pr      ]
                    + sr[pr-width] * sax[pr-width]
-                   + sr[pr+1    ] * say[pr      ]
-                   + sr[pr-1    ] * say[pr-1    ];
+                   + rir * say[pr      ]
+                   + ril * say[pr-1    ];
+            
             pr++;
+            ril = rcu;
+            rcu = rir;
+            rir = sr[pr+1];
         }
         // ulong timen  = GetTicksUsec();
         // Print($"ApplyA: {timen-time}");
@@ -491,6 +499,13 @@ public class GridBLAS {
     }
 
     private unsafe void PCGAlgo(int max_iter = 200, double prev_max_r = 0) {
+        var sr = s.Memory.Span;
+        var sad = Adiag.Memory.Span;
+        var sax = Ax.Memory.Span;
+        var say = Ay.Memory.Span;
+        var sz = z.Memory.Span;
+        var pr = width;
+        double ril,rcu,rir;
         // SETUP
         // tolerance tol
         double tol = 0.000001; // 10^-6
@@ -504,8 +519,25 @@ public class GridBLAS {
         // ITERATIONS
         for (int iter = 0; iter < max_iter; iter++) {
             ulong time = GetTicksUsec();
+            pr = width;
+        
+            ril = sr[pr-1];
+            rcu = sr[pr  ];
+            rir = sr[pr+1];
 
-            ApplyA(s);
+            while (pr < sz.Length - width)
+            {
+                sz[pr] = rcu          * sad[pr      ]
+                       + sr[pr+width] * sax[pr      ]
+                       + sr[pr-width] * sax[pr-width]
+                       + rir          * say[pr      ]
+                       + ril          * say[pr-1    ];
+                
+                pr++;
+                ril = rcu;
+                rcu = rir;
+                rir = sr[pr+1];
+            }
             ulong timea = GetTicksUsec();
 
             Vec.PointwiseMul(z,s,holdervec);

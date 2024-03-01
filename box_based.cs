@@ -1,4 +1,5 @@
 using Godot;
+using NumFlat;
 using System;
 
 public partial class box_based : Node2D
@@ -60,17 +61,16 @@ public partial class box_based : Node2D
 		level_image.Fill(Colors.White);
 	}
 
-	public void ImageFromSet(float[,] dataset)
+	public void ImageFromSet(Vec<float> dataset)
 	{
-		for (int i = 0; i < dataset.GetLength(0); i++)
+		for (int pos = 0; pos < dataset.Count; pos++)
 		{
-			for (int j = 0; j < dataset.GetLength(1); j++)
+			int i = pos / ls.width;
+			int j = pos - i * ls.width;
+			level_image.SetPixel(i, j, new Color((dataset[pos] + 100f) / 600f,0,0));
+			if (dataset[pos] <= 1 && dataset[pos] >= -1)
 			{
-				level_image.SetPixel(i, j, new Color((dataset[i,j] + 100f) / 600f,0,0));
-				if (dataset[i,j] <= 1 && dataset[i,j] >= -1)
-				{
-					level_image.SetPixel(i,j,new Color(1,1,1));
-				}
+				level_image.SetPixel(i,j,new Color(1,1,1));
 			}
 		}
 	}

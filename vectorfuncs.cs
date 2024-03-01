@@ -1,3 +1,4 @@
+using NumFlat;
 using static System.MathF;
 using static Godot.GD;
 
@@ -107,12 +108,30 @@ public class VectorFuncs {
                     position.y - j);
     }
 
+    public static float LerpFloatField(Vector2 position,  Vec<float> float_field, int width, int height) {
+        int i = (int)(position.x);
+        int j = (int)(position.y);
+        float s_x = position.x - i;
+        return Lerp(Lerp(float_field[i*width+j  ],float_field[i*width+j+width  ],s_x),
+                    Lerp(float_field[i*width+j+1],float_field[i*width+j+1+width],s_x),
+                    position.y - j);
+    }
+
     public static float LerpFloatField(float x, float y,  float[,] float_field) {
         int i = (int)(x);
         int j = (int)(y);
         float s_x = x - i;
         return Lerp(Lerp(float_field[i,j  ],float_field[i+1,j  ],s_x),
                     Lerp(float_field[i,j+1],float_field[i+1,j+1],s_x),
+                    y - j);
+    }
+
+    public static float LerpFloatField(float x, float y,  Vec<float> float_field, int width, int height) {
+        int i = (int)(x);
+        int j = (int)(y);
+        float s_x = x - i;
+        return Lerp(Lerp(float_field[i*width+j  ],float_field[i*width+j+width  ],s_x),
+                    Lerp(float_field[i*width+j+1],float_field[i*width+width+j+1],s_x),
                     y - j);
     }
     public static Vector2 LerpVelocityField(Vector2 position,  float[,] u_vel,  float[,] v_vel) {
@@ -133,9 +152,20 @@ public class VectorFuncs {
     public static float BigCentralDifferenceY(Vector2 position,  float[,] float_field, float dx) {
         return (float_field[(int)position.x,(int)position.y + 1] - float_field[(int)position.x,(int)position.y - 1]) / (2.0f * dx);
     }
+    public static float BigCentralDifferenceX(Vector2 position,  Vec<float> float_field, float dx,int width,int height) {
+        return (float_field[(int)position.x*width+(int)position.y+width] - float_field[(int)position.x*width+(int)position.y-width]) / (2.0f * dx);
+    }
+    public static float BigCentralDifferenceY(Vector2 position,  Vec<float> float_field, float dx,int width, int height) {
+        return (float_field[(int)position.x*width+(int)position.y + 1] - float_field[(int)position.x*width+(int)position.y - 1]) / (2.0f * dx);
+    }
 
     public static Vector2 GradientFloatField(Vector2 position, float[,] float_field, float dx) {
         return new Vector2(BigCentralDifferenceX(position,float_field,dx),
                            BigCentralDifferenceY(position,float_field,dx));
+    }
+
+    public static Vector2 GradientFloatField(Vector2 position, Vec<float> float_field, float dx,int width, int height) {
+        return new Vector2(BigCentralDifferenceX(position,float_field,dx,width,height),
+                           BigCentralDifferenceY(position,float_field,dx,width,height));
     }
 }

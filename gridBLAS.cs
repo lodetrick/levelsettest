@@ -17,9 +17,8 @@ public class GridBLAS {
     public Vec<double> pressure;
     public float[,] u_vel, u_vel_hold, v_vel, v_vel_hold;
     // Variables for the Project Step
-    private double[,] precon,rhs;
     private Vec<double> z,s,r,holdervec;
-    private Vec<double> Adiag,Ax,Ay;
+    private Vec<double> Adiag,Ax,Ay,precon,rhs;
     private LevelSet levelSet;
     private float u_bodyforce,v_bodyforce;
     private static float density;
@@ -45,11 +44,11 @@ public class GridBLAS {
         v_vel_hold = new float[(width),height+1];          //v(i,j,k) = v_i,j-.5,k
 
         // Project step
-        rhs = new double[width,height];
+        rhs = new Vec<double>(width*height);
         Adiag = new Vec<double>(width*height);
         Ax = new Vec<double>(width*height);
         Ay = new Vec<double>(width*height);
-        precon = new double[width,height];
+        precon = new Vec<double>(width*height);
         z = new Vec<double>(width*height);
         s = new Vec<double>(width*height);
         r = new Vec<double>(width*height);
@@ -227,9 +226,8 @@ public class GridBLAS {
 
 
         pressure.Clear();
-        for (int i = 0; i < width * height; i++) {
-            r[i] = rhs[i / width, i % width];
-        }
+        rhs.CopyTo(r);
+
         time = GetTicksUsec();
         Print($"Clear Takes {time - timen} micro-seconds");
         // 4. Solve Ap = b with PCG
@@ -252,38 +250,40 @@ public class GridBLAS {
     // Calculate Negative Divergence (Right Hand Side of Equation)
     private void CalculateRHS() {
         double scale = 1 / dx;
+        int position;
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
+                position = i * width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    rhs[i,j] = -scale * (u_vel_hold[i+1,j] - u_vel_hold[i,j]
+                    rhs[position] = -scale * (u_vel_hold[i+1,j] - u_vel_hold[i,j]
                                         +v_vel_hold[i,j+1] - v_vel_hold[i,j]);
                     
-                    if (GetMaterialType(i-1,j) == Material.SOLID) {rhs[i,j] -= scale * (u_vel_hold[i,j] - GetUSolid(i,j));}
-                    if (GetMaterialType(i+1,j) == Material.SOLID) {rhs[i,j] += scale * (u_vel_hold[i+1,j] - GetUSolid(i+1,j));}
+                    if (GetMaterialType(i-1,j) == Material.SOLID) {rhs[position] -= scale * (u_vel_hold[i,j] - GetUSolid(i,j));}
+                    if (GetMaterialType(i+1,j) == Material.SOLID) {rhs[position] += scale * (u_vel_hold[i+1,j] - GetUSolid(i+1,j));}
 
-                    if (GetMaterialType(i,j-1) == Material.SOLID) {rhs[i,j] -= scale * (v_vel_hold[i,j] - GetVSolid(i,j));}
-                    if (GetMaterialType(i,j+1) == Material.SOLID) {rhs[i,j] += scale * (v_vel_hold[i,j+1] - GetVSolid(i,j+1));}
+                    if (GetMaterialType(i,j-1) == Material.SOLID) {rhs[position] -= scale * (v_vel_hold[i,j] - GetVSolid(i,j));}
+                    if (GetMaterialType(i,j+1) == Material.SOLID) {rhs[position] += scale * (v_vel_hold[i,j+1] - GetVSolid(i,j+1));}
                 }
                 else {
-                    rhs[i,j] = 0;
+                    rhs[position] = 0;
                 }
             }
         }
 
         //Compatibility Condition:
         //quick solution, not good
-        double sum = 0;
-        for (int i = 10; i < 190; i++) {
-            for (int j = 10; j < 190; j++) {
-                sum += rhs[i,j];
-            }
-        }
+        // double sum = 0;
+        // for (int i = 10; i < 190; i++) {
+        //     for (int j = 10; j < 190; j++) {
+        //         sum += rhs[i,j];
+        //     }
+        // }
 
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                sum -= sum / (180*180);
-            }
-        }
+        // for (int i = 0; i < width; i++) {
+        //     for (int j = 0; j < height; j++) {
+        //         sum -= sum / (180*180);
+        //     }
+        // }
     }
 
     // Calculate the varieties of A
@@ -328,17 +328,17 @@ public class GridBLAS {
             for (int j = 0; j < height; j++) {
                 position = i * width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = Adiag[position] - Math.Pow(Ax[position-width] * precon[i-1,j],2)
-                                        - Math.Pow(Ay[position-1] * precon[i,j-1],2)
-                                        - tuning *(Ax[position-width] * (Ay[position-width]) * precon[i-1,j] * precon[i-1,j]
-                                                 + Ay[position-1] * (Ax[position-1]) * precon[i,j-1] * precon[i,j-1]);
+                    holder = Adiag[position] - Math.Pow(Ax[position-width] * precon[position-width],2)
+                                        - Math.Pow(Ay[position-1] * precon[position-1],2)
+                                        - tuning *(Ax[position-width] * (Ay[position-width]) * precon[position-width] * precon[position-width]
+                                                 + Ay[position-1    ] * (Ax[position-1    ]) * precon[position-1    ] * precon[position-1    ]);
                     if (holder < safety * Adiag[position]) { holder = Adiag[position]; }
-                    precon[i,j] = 1 / Math.Sqrt(holder);
-                    if (double.IsNaN(precon[i,j])) {
+                    precon[position] = 1 / Math.Sqrt(holder);
+                    if (double.IsNaN(precon[position])) {
                         throw new ArithmeticException($"Precon is NaN: {holder} =  {Adiag[position]} - {Ax[position-width]} - {Ay[position-1]}");
                     }
                 }
-                else { precon[i,j] = 0; } // more precisely, what should the default value be? 1 / 0?
+                else { precon[position] = 0; } // more precisely, what should the default value be? 1 / 0?
             }
         }
         ulong timen  = GetTicksUsec();
@@ -356,9 +356,9 @@ public class GridBLAS {
             for (int j = 0; j < height; j++) {
                 position = i * width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = r[position] - Ax[position-width] * precon[i-1,j] * z[position - width]
-                                         - Ay[position-1] * precon[i,j-1] * z[position - 1];
-                    z[position] = holder * precon[i,j];
+                    holder = r[position] - Ax[position-width] * precon[position-width] * z[position - width]
+                                         - Ay[position-1] * precon[position-1] * z[position - 1];
+                    z[position] = holder * precon[position];
                 }
                 else { z[position] = 0; } // what should the default value be? r * precon? 0? 
             }
@@ -368,15 +368,53 @@ public class GridBLAS {
             for (int j = height - 1; j >= 0; j--) {
                 position = i * width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = z[position] - Ax[position] * precon[i,j] * z[position + width]
-                                         - Ay[position] * precon[i,j] * z[position + 1];
-                    z[position] = holder * precon[i,j];
+                    holder = z[position] - Ax[position] * precon[position] * z[position + width]
+                                         - Ay[position] * precon[position] * z[position + 1];
+                    z[position] = holder * precon[position];
                 }
                 else { z[position] = 0; }
             }
         }
         // ulong timen  = GetTicksUsec();
         // Print($"ApplyPrecon: {timen-time}");
+    }
+
+    private void ApplyPreconditioner() { // z = precon * r
+        var sr = r.Memory.Span;
+        var spre = precon.Memory.Span;
+        var sax = Ax.Memory.Span;
+        var say = Ay.Memory.Span;
+        var sz = z.Memory.Span;
+        var sls = levelSet.distance_field.Memory.Span;
+        var pr = 0;
+        var holder = 0.0;
+
+        while (pr < sz.Length) {
+            if (sls[pr] > 0) { // material is liquid
+                holder = sr[pr] - sax[pr - width] * spre[pr - width] * sz[pr - width]
+                                - say[pr - 1    ] * spre[pr - 1    ] * sz[pr - 1    ];
+                sz[pr] = holder * spre[pr]; 
+            }
+            else {
+                sz[pr] = 0;
+            }
+            pr++;
+        }
+
+        pr = height * width - 1;
+
+        while (pr >= 0) {
+            if (sls[pr] > 0) {
+                holder = sz[pr] - sax[pr] * spre[pr] * sz[pr + width]
+                                - say[pr] * spre[pr] * sz[pr + 1    ];
+                sz[pr] = holder * spre[pr];
+            }
+            else {
+                sz[pr] = 0;
+            }
+
+            pr--;
+        }
     }
 
     // Apply A : p = Ar, return p
@@ -388,6 +426,8 @@ public class GridBLAS {
         // multiply matrix A by vector r
         // for each cell, e = Adiag[i,j] * r[i,j] + Ax[i,j] * r[i+1,j] + Ax[i-1,j] * r[i-1,j] + Ay[i,j] * r[i,j+1] + Ay[i,j-1] * r[i,j-1]
         
+
+        // This is 900 usec, but the while loop is 560 usec. Why?
         // int position;
         // for (int i = 1; i < width-1; i++) {
         //     for (int j = 1; j < height-1; j++) {
@@ -406,17 +446,14 @@ public class GridBLAS {
         var say = Ay.Memory.Span;
         var sz = z.Memory.Span;
         var pr = width;
-        
-        var dx = width;
 
         while (pr < sz.Length - width)
         {
-            sz[pr] = sr[pr   ] * sad[pr   ]
-                   + sr[pr+dx] * sax[pr   ]
-                   + sr[pr-dx] * sax[pr-dx]
-                   + sr[pr+1 ] * say[pr   ]
-                   + sr[pr-1 ] * say[pr-1 ];
-
+            sz[pr] = sr[pr      ] * sad[pr      ]
+                   + sr[pr+width] * sax[pr      ]
+                   + sr[pr-width] * sax[pr-width]
+                   + sr[pr+1    ] * say[pr      ]
+                   + sr[pr-1    ] * say[pr-1    ];
             pr++;
         }
         // ulong timen  = GetTicksUsec();
@@ -459,7 +496,7 @@ public class GridBLAS {
         double tol = 0.000001; // 10^-6
         // initial guess for pressure, residual r
 
-        ApplyPreconditioner(r); // z = precon * r
+        ApplyPreconditioner(); // z = precon * r
         z.CopyTo(s);
         
         double sigma = dotproduct(z,r);
@@ -521,7 +558,7 @@ public class GridBLAS {
             //prev_max_r = max_r;
             ulong timeq = GetTicksUsec();
 
-            ApplyPreconditioner(r);
+            ApplyPreconditioner();
 
             ulong timeb = GetTicksUsec();
 

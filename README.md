@@ -1,4 +1,4 @@
-BLAS:
+To Install BLAS for use:
 
 BLAS Wrapper Provided by: https://github.com/sinshu/NumFlat
 To Install, download OpenBLAS from: https://github.com/OpenMathLib/OpenBLAS/releases

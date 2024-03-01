@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static Godot.GD;
+using static Godot.Time;
 
 public enum Material {
     SOLID,
@@ -25,11 +26,11 @@ public class Grid {
     // Variables for the Project Step
     private double[,] Adiag,Ax,Ay,precon,z,rhs,s,r;
     private LevelSet levelSet;
-    private Vector2 bodyforce;
+    private Vector2 bodyforce, outsideforce;
     private static float density;
     private float timestep;
     public static float dx {get; set;}
-    private int width,height;
+    public int width,height;
 
     static Grid() {
         dx = 0.01f;        // s
@@ -63,13 +64,26 @@ public class Grid {
         r = new double[width,height];
 
         levelSet = new LevelSet(width,height);
-        bodyforce = new Vector2(0,9.8f);
+        bodyforce = new Vector2(0,0);
+        outsideforce = new Vector2(0.5f,0.3f);
+
 
         InitialConditions();
     }
 
     private void InitialConditions() {
         levelSet.AddBox(3,5,197,195,-1); // inverse box
+        levelSet.AddBox(90,90,110,110);
+        levelSet.AddBox(105,105,130,120);
+        levelSet.AddBox(120,80,140,95);
+        levelSet.AddBox(40,67.5f,80,80);
+        levelSet.AddBox(60,70,70,95);
+        levelSet.AddBox(50,50,60,60);
+        levelSet.AddBox(45,180,150,165);
+        levelSet.AddBox(80,185,130,175);
+        levelSet.AddBox(140,60,150,65);
+        levelSet.AddBox(135,55,120,20);
+        levelSet.AddBox(155,8,165,30);
 
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
@@ -90,8 +104,7 @@ public class Grid {
         float vel_max = Sqrt(MaxSpeedHold()) + Sqrt(5*dx*bodyforce.Length());
         timestep = (5 * dx) / (vel_max);
         Print($"Timestep: {timestep}");
-        Project(1000); // make sure initial velocities are divergence-free
-        Project(1000);
+        Project(300); // make sure initial velocities are divergence-free
     }
 
     public void PrintData(float x, float y) {
@@ -119,16 +132,23 @@ public class Grid {
     public void Step() {
         timestep = CalculateTimestep();
         Print($"Timestep: {timestep}");
-        SemiLagrangian(using_hold ? smoke_density_hold : smoke_density, using_hold ? smoke_density : smoke_density_hold);
-        using_hold = !using_hold;
+        //SemiLagrangian(using_hold ? smoke_density_hold : smoke_density, using_hold ? smoke_density : smoke_density_hold);
+        //using_hold = !using_hold;
         //Print("Smoke Advect");
 
         ready = true;
+        ulong time = GetTicksUsec();
         SemiLagrangian(); // u_vel -> u_vel_hold
+        ulong timen = GetTicksUsec();
+        Print($"Semi-Lagrangian Took {timen - time} micro-seconds");
         //Print("Velocity Advect");
         BodyForces();     // u_vel_hold -> u_vel_hold
+        time = GetTicksUsec();
+        Print($"Body Forces Took {time - timen} Micro-Seconds");
         //Print("Body Forces");
         Project();        // u_vel_hold -> u_vel  - Technically could be hold -> hold, but wanted to end on u_vel
+        timen = GetTicksUsec();
+        Print($"Project takes {timen - time} Micro-Seconds");
         //Print("Project");
     }
     private void SemiLagrangian(float[,] get_field, float[,] store_field) {
@@ -207,14 +227,21 @@ public class Grid {
 
     private void Project(int max_iter = 200) {
         // 1. Calculate negative divergence with modifications at solid wall boundaries
+        ulong time = GetTicksUsec();
         CalculateRHS();
+        ulong timen = GetTicksUsec();
+        Print($"Calc RHS Takes {timen - time} micro-seconds");
        // Print("RHS");
         // Note: Matrix Solves should use Doubles, not Floats
         // 2. Set the entries of A (Adiag, Ax, Ay)
         CalculateLHS();
+        time = GetTicksUsec();
+        Print($"Calc LHS Takes {time - timen} micro-seconds");
        // Print("LHS");
         // 3. Construct the Preconditioner (MIC(0))
         CalculatePreconditioner();
+        timen = GetTicksUsec();
+        Print($"Calc Precon Takes {timen - time} micro-seconds");
        // Print("Preconditioner");
 
         for (int i = 0; i < width; i++) {
@@ -223,11 +250,17 @@ public class Grid {
                 r[i,j] = rhs[i,j];
             }
         }
+        time = GetTicksUsec();
+        Print($"Clear Takes {time - timen} micro-seconds");
         // 4. Solve Ap = b with PCG
         PCGAlgo(max_iter);
+        timen = GetTicksUsec();
+        Print($"PCG Algo Takes {timen - time} micro-seconds");
        // Print("PCG");
         // 5. Compute new velocities according to pressure-gradient update to u. - Mark certain positions as unknown
         PressureGradientUpdate();
+        time = GetTicksUsec();
+        Print($"Pressure Gradient Update Takes {time - timen} micro-seconds");
         //Print("PressureGradientUpdate");
         // 6. Use Breadth-First Search to extrapolate velocity values
        // ExtrapolateField(u_vel);
@@ -245,11 +278,11 @@ public class Grid {
                     rhs[i,j] = -scale * (u_vel_hold[i+1,j] - u_vel_hold[i,j]
                                         +v_vel_hold[i,j+1] - v_vel_hold[i,j]);
                     
-                    if (GetMaterialType(i-1,j) == Material.SOLID) {rhs[i,j] -= scale * (u_vel_hold[i,j] - 0/*u_solid[i,j]*/);}
-                    if (GetMaterialType(i+1,j) == Material.SOLID) {rhs[i,j] += scale * (u_vel_hold[i+1,j] - 0/*u_solid[i+1,j]*/);}
+                    if (GetMaterialType(i-1,j) == Material.SOLID) {rhs[i,j] -= scale * (u_vel_hold[i,j] - GetUSolid(i,j));}
+                    if (GetMaterialType(i+1,j) == Material.SOLID) {rhs[i,j] += scale * (u_vel_hold[i+1,j] - GetUSolid(i+1,j));}
 
-                    if (GetMaterialType(i,j-1) == Material.SOLID) {rhs[i,j] -= scale * (v_vel_hold[i,j] - 0/*u_solid[i,j]*/);}
-                    if (GetMaterialType(i,j+1) == Material.SOLID) {rhs[i,j] += scale * (v_vel_hold[i,j+1] - 0/*u_solid[i,j+1]*/);}
+                    if (GetMaterialType(i,j-1) == Material.SOLID) {rhs[i,j] -= scale * (v_vel_hold[i,j] - GetVSolid(i,j));}
+                    if (GetMaterialType(i,j+1) == Material.SOLID) {rhs[i,j] += scale * (v_vel_hold[i,j+1] - GetVSolid(i,j+1));}
                 }
                 else {
                     rhs[i,j] = 0;
@@ -389,12 +422,6 @@ public class Grid {
         for (int i = 0; i < width; i++) {
             for (int j = 0; j < height; j++) {
                 sum += lhs[i,j] * rhs[i,j];
-                if (double.IsNaN(lhs[i,j] * rhs[i,j])) {
-                    throw new ArithmeticException($"Sum is NaN: {lhs[i,j]} * {rhs[i,j]}");
-                }
-                if (lhs[i,j] != 0 && rhs[i,j] != 0 && sum == 0) {
-                    throw new ArithmeticException($"Possible incorrect multiply between {lhs[i,j]} and {rhs[i,j]}");
-                }
             }
         }
         return sum;
@@ -419,22 +446,23 @@ public class Grid {
         double sigma = dotproduct(z,r);
         // ITERATIONS
         for (int iter = 0; iter < max_iter; iter++) {
+            ulong time = GetTicksUsec();
+
             z = ApplyA(s);
+
+            ulong timea = GetTicksUsec();
+
             double alpha = sigma / (dotproduct(z,s));
-            if (double.IsNaN(alpha)) {
-                throw new ArithmeticException($"Alpha Is NaN: {sigma} / {dotproduct(z,s)}");
-            }
+
+            ulong timep = GetTicksUsec();
 
             double max_r = r[0,0];
-            int x=0, y=0;
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
                     pressure[i,j] += alpha * s[i,j];
                     r[i,j] -= alpha * z[i,j];
                     if (max_r < Math.Abs(r[i,j])) {
                         max_r = Math.Abs(r[i,j]);
-                        x = i;
-                        y = j;
                     }
                 }
             }
@@ -442,6 +470,7 @@ public class Grid {
                 Print($"Iterations: {iter}, (Residual {max_r})");
                 return;
             }
+            ulong timen = GetTicksUsec();/*
             else if (iter > 150){
                 Print($"MAX Residual: {max_r} with a {alpha} at ({x}, {y})\n z= {z[x,y]}, s={s[x,y]}, Adiag={Adiag[x,y]}, Ax={Ax[x,y]}, Ay={Ay[x,y]}, rhs={rhs[x,y]}");
             }
@@ -460,16 +489,15 @@ public class Grid {
                 Print($"Restart at {iter}. {max_r} vs. {prev_max_r}");
                 PCGAlgo(max_iter - iter,prev_max_r);
                 return;
-            }
+            }*/
 
             prev_max_r = max_r;
-
+            ulong timeq = GetTicksUsec();
             ApplyPreconditioner(r);
+            ulong timeb = GetTicksUsec();
             double _sigma = dotproduct(z,r);
+            ulong times = GetTicksUsec();
             alpha = _sigma / sigma;
-            if (double.IsNaN(alpha)) {
-                throw new ArithmeticException($"Beta Is NaN {_sigma} / {sigma}");
-            }
 
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
@@ -477,6 +505,8 @@ public class Grid {
                 }
             }
             sigma = _sigma;
+            ulong timer = GetTicksUsec();
+            Print($"AA: {timea - time}, al: {timep - timea}, p+r: {timen - timep}, max_r: {timeq-timen}, APre: {timeb - timeq}, dot: {times - timeb}, s: {timer - times} Total: {timer - time}");
         }
 
         Print($"Max Iterations Exceeded (Residual {prev_max_r})"); // report iteration limit exceeded
@@ -489,14 +519,14 @@ public class Grid {
             for (int j = 0; j < height; j++) {
                 // x-axis
                 if (GetMaterialType(i,j) == Material.LIQUID || GetMaterialType(i-1,j) == Material.LIQUID) {
-                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i-1,j) == Material.SOLID) { u_vel[i,j] = 0; /*u_solid[i,j];*/ }
+                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i-1,j) == Material.SOLID) { u_vel[i,j] = GetUSolid(i,j); }
                     else { u_vel[i,j] = u_vel_hold[i,j] - scale * (float)(pressure[i,j] - pressure[i-1,j]); }
                 }
                 else { u_vel[i,j] = 0; }
 
                 // y-axis
                 if (GetMaterialType(i,j) == Material.LIQUID || GetMaterialType(i,j-1) == Material.LIQUID) {
-                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i,j-1) == Material.SOLID) { v_vel[i,j] = 0; /*v_solid[i,j];*/ }
+                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i,j-1) == Material.SOLID) { v_vel[i,j] = GetVSolid(i,j); }
                     else { v_vel[i,j] = v_vel_hold[i,j] - scale * (float)(pressure[i,j] - pressure[i,j-1]); }
                 }
                 else { v_vel[i,j] = 0; }
@@ -505,8 +535,8 @@ public class Grid {
     }
 
     //MaterialType: Return 0 for Solid, 1 for Fluid, 2 for Empty (Don't know how to check if it is empty yet)
-    private Material GetMaterialType(int x, int y) {
-        if (levelSet.GetDistanceOnGrid(x,y) < 0) {
+    public Material GetMaterialType(int x, int y) {
+        if (levelSet.GetDistanceOnGrid(x,y) <= 0.1) {
             return Material.SOLID;
         }/*
         else if ((using_hold ? smoke_density_hold[x,y] : smoke_density[x,y]) < 0.1) {
@@ -516,11 +546,19 @@ public class Grid {
        // return levelSet.GetDistanceOnGrid(x,y) < 0 ? Material.SOLID : Material.LIQUID;
     }
 
-    private Vector2 GetSolidVelocity(int x, int y) {
-        if (y >= 5 && y <= 195) {
-            return new Vector2(0.5f,0); // moving right
+    // outside: levelSet.AddBox(3,5,197,195,-1);
+
+    private float GetUSolid(int x, int y) {
+        if ((x <= 5 || x >= 195) && y >= 5 && y <= 195) {
+            return outsideforce.x; // moving right
         }
-        return new Vector2(0,0);
+        return 0;
+    }
+    private float GetVSolid(int x, int y) {
+         if ((x <= 4 || x >= 196) || (y <= 6 || y >= 194)) {
+            return outsideforce.y; // moving down
+        }
+        return 0;
     }
 
     // Breadth-First Search To Extrapolate Values

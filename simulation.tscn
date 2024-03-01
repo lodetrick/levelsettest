@@ -8,6 +8,7 @@
 script = ExtResource("1_6qeqq")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
 z_index = -1
 texture_filter = 1
 texture = ExtResource("1_475qe")
@@ -60,7 +61,31 @@ text = "Step"
 layout_mode = 2
 text = "Step 10"
 
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 8
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/MarginContainer/PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 8
+
+[node name="Label" type="Label" parent="CanvasLayer/MarginContainer/PanelContainer/HBoxContainer2"]
+layout_mode = 2
+text = "Scale:"
+
+[node name="HSlider" type="HSlider" parent="CanvasLayer/MarginContainer/PanelContainer/HBoxContainer2"]
+custom_minimum_size = Vector2(250, 2.08165e-12)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 8
+min_value = 1.0
+max_value = 25.0
+value = 5.0
+
 [connection signal="pressed" from="CanvasLayer/MarginContainer/VBoxContainer/ZoomInButton" to="Camera2D" method="_on_zoom_in_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/MarginContainer/VBoxContainer/ZoomOutButton" to="Camera2D" method="_on_zoom_out_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/MarginContainer/HBoxContainer/StepButton" to="." method="Step"]
 [connection signal="pressed" from="CanvasLayer/MarginContainer/HBoxContainer/StepButton2" to="." method="StepTen"]
+[connection signal="drag_ended" from="CanvasLayer/MarginContainer/PanelContainer/HBoxContainer2/HSlider" to="Camera2D" method="_on_h_slider_drag_ended"]

@@ -11,92 +11,92 @@ using static Godot.Time;
 
 public class GridBLAS {
     //MAC Grid
-    public Vec<double> pressure;
-    public float[,] u_vel, u_vel_hold, v_vel, v_vel_hold;
+    private Vec<double> _pressure;
+    public float[,] UVel, UVelHold, VVel, VVelHold;
     // Variables for the Project Step
-    private Vec<double> z,s,r,holdervec;
-    private Vec<double> Adiag,Ax,Ay,precon,rhs;
-    private LevelSet levelSet;
-    private float u_bodyforce,v_bodyforce;
-    private static float density;
-    private float timestep;
-    public static float dx {get; set;}
-    public int width,height;
+    private Vec<double> _z,_s,_r,_holdervec;
+    private Vec<double> _adiag,_ax,_ay,_precon,_rhs;
+    private LevelSet _levelSet;
+    private float _uBodyforce,_vBodyforce;
+    private static float _density;
+    private float _timestep;
+    public static float Dx {get; set;}
+    public int Width,Height;
 
     static GridBLAS() {
-        dx = 0.01f;        // s
-        density = 1000; // kg / m^3
+        Dx = 0.01f;        // s
+        _density = 1000; // kg / m^3
     }
 
-    public GridBLAS(int width, int height,float _grid_length) {
+    public GridBLAS(int width, int height,float gridLength) {
         //instantiates MAC grid, creates base values
-        dx = _grid_length;
-        this.width = width;
-        this.height = height;
-        pressure = new Vec<double>(width*height);         //p(i,j,k) = p_i,j,k
-        u_vel = new float[(width+1),height];          //u(i,j,k) = u_i-.5,j,k
-        v_vel = new float[(width),height+1];          //v(i,j,k) = v_i,j-.5,k
+        Dx = gridLength;
+        this.Width = width;
+        this.Height = height;
+        _pressure = new Vec<double>(width*height);         //p(i,j,k) = p_i,j,k
+        UVel = new float[(width+1),height];          //u(i,j,k) = u_i-.5,j,k
+        VVel = new float[(width),height+1];          //v(i,j,k) = v_i,j-.5,k
 //      w_vel = new float[width,height,depth+1];    //w(i,j,k) = w_i,j,k-.5
-        u_vel_hold = new float[(width+1),height];          //u(i,j,k) = u_i-.5,j,k
-        v_vel_hold = new float[(width),height+1];          //v(i,j,k) = v_i,j-.5,k
+        UVelHold = new float[(width+1),height];          //u(i,j,k) = u_i-.5,j,k
+        VVelHold = new float[(width),height+1];          //v(i,j,k) = v_i,j-.5,k
 
         // Project step
-        rhs = new Vec<double>(width*height);
-        Adiag = new Vec<double>(width*height);
-        Ax = new Vec<double>(width*height);
-        Ay = new Vec<double>(width*height);
-        precon = new Vec<double>(width*height);
-        z = new Vec<double>(width*height);
-        s = new Vec<double>(width*height);
-        r = new Vec<double>(width*height);
-        holdervec = new Vec<double>(width*height);
+        _rhs = new Vec<double>(width*height);
+        _adiag = new Vec<double>(width*height);
+        _ax = new Vec<double>(width*height);
+        _ay = new Vec<double>(width*height);
+        _precon = new Vec<double>(width*height);
+        _z = new Vec<double>(width*height);
+        _s = new Vec<double>(width*height);
+        _r = new Vec<double>(width*height);
+        _holdervec = new Vec<double>(width*height);
 
-        levelSet = new LevelSet(width,height);
-        u_bodyforce = 0;
-        v_bodyforce = 0;
+        _levelSet = new LevelSet(width,height);
+        _uBodyforce = 0;
+        _vBodyforce = 0;
 
         InitialConditions();
     }
 
     private void InitialConditions() {
-        levelSet.AddBox(3,5,197,195,-1); // inverse box
-        levelSet.AddBox(90,90,110,110);
-        levelSet.AddBox(105,105,130,120);
-        levelSet.AddBox(120,80,140,95);
-        levelSet.AddBox(40,67.5f,80,80);
-        levelSet.AddBox(60,70,70,95);
-        levelSet.AddBox(50,50,60,60);
-        levelSet.AddBox(45,180,150,165);
-        levelSet.AddBox(80,185,130,175);
-        levelSet.AddBox(140,60,150,65);
-        levelSet.AddBox(135,55,120,20);
-        levelSet.AddBox(155,8,165,30);
+        _levelSet.AddBox(3,5,197,195,-1); // inverse box
+        _levelSet.AddBox(90,90,110,110);
+        _levelSet.AddBox(105,105,130,120);
+        _levelSet.AddBox(120,80,140,95);
+        _levelSet.AddBox(40,67.5f,80,80);
+        _levelSet.AddBox(60,70,70,95);
+        _levelSet.AddBox(50,50,60,60);
+        _levelSet.AddBox(45,180,150,165);
+        _levelSet.AddBox(80,185,130,175);
+        _levelSet.AddBox(140,60,150,65);
+        _levelSet.AddBox(135,55,120,20);
+        _levelSet.AddBox(155,8,165,30);
 
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
                 if (GetMaterialType(i+1,j+1) == Material.LIQUID && GetMaterialType(i-1,j-1) == Material.LIQUID) {
-                    u_vel_hold[i,j] = 0.5f;
-                    v_vel_hold[i,j] = 0f;
+                    UVelHold[i,j] = 0.5f;
+                    VVelHold[i,j] = 0f;
                 }
                 else {
-                    u_vel_hold[i,j] = 0f;
-                    v_vel_hold[i,j] = 0f;
+                    UVelHold[i,j] = 0f;
+                    VVelHold[i,j] = 0f;
                 }
             }
         }
 
-        float vel_max = Sqrt(MaxSpeedHold()) + Sqrt(5*dx*(Sqrt(u_bodyforce*u_bodyforce + v_bodyforce*v_bodyforce)));
-        timestep = (5 * dx) / (vel_max);
-        Print($"Timestep: {timestep}");
+        float velMax = Sqrt(MaxSpeedHold()) + Sqrt(5*Dx*(Sqrt(_uBodyforce*_uBodyforce + _vBodyforce*_vBodyforce)));
+        _timestep = (5 * Dx) / (velMax);
+        Print($"Timestep: {_timestep}");
         Project(1000); // make sure initial velocities are divergence-free
     }
 
     public void PrintData(float x, float y) {
-        Vector2 position = new Vector2(x,y).Constrain(0,0,width-1,height-1,1);
+        Vector2 position = new Vector2(x,y).Constrain(0,0,Width-1,Height-1,1);
         Print($"Data At: ({position.x},{position.y})");
        //Print($"Pressure: {pressure[(int)x,(int)y]}");
         Print("Velocity: ");
-        VectorFuncs.CubicVectorField(position,u_vel,v_vel).Print();
+        VectorFuncs.CubicVectorField(position,UVel,VVel).Print();
         string type = "";
         switch (GetMaterialType((int)x,(int)y)) {
             case Material.SOLID: type = "Solid"; break;
@@ -109,12 +109,12 @@ public class GridBLAS {
 
     //gets velocity at that point
     private Vector2 VelocityOnGrid(int i, int j) {
-        return new Vector2((u_vel[i,j] + u_vel[i+1,j]) / 2.0f,(v_vel[i,j]+v_vel[i,j+1]) / 2.0f);
+        return new Vector2((UVel[i,j] + UVel[i+1,j]) / 2.0f,(VVel[i,j]+VVel[i,j+1]) / 2.0f);
     }
 
     public void Step() {
-        timestep = CalculateTimestep();
-        Print($"Timestep: {timestep}");
+        _timestep = CalculateTimestep();
+        Print($"Timestep: {_timestep}");
         //SemiLagrangian(using_hold ? smoke_density_hold : smoke_density, using_hold ? smoke_density : smoke_density_hold);
         //using_hold = !using_hold;
         //Print("Smoke Advect");
@@ -126,90 +126,90 @@ public class GridBLAS {
         Project();        // u_vel_hold -> u_vel  - Technically could be hold -> hold, but wanted to end on u_vel
         //Print("Project");
     }
-    private void SemiLagrangian(float[,] get_field, float[,] store_field) {
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                Vector2 x_P = RungeKutta2(new Vector2(i,j));
-                x_P = x_P.Constrain(0,0,width-1,height-1,1);
-                if (levelSet.GetDistance(x_P) < 0) {
-                    x_P = levelSet.FindClosest(x_P);
+    private void SemiLagrangian(float[,] getField, float[,] storeField) {
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                Vector2 xP = RungeKutta2(new Vector2(i,j));
+                xP = xP.Constrain(0,0,Width-1,Height-1,1);
+                if (_levelSet.GetDistance(xP) < 0) {
+                    xP = _levelSet.FindClosest(xP);
                 }
-                x_P = x_P.Constrain(0,0,width-1,height-1,5);
-                store_field[i,j] = VectorFuncs.CubicFloatField(x_P,get_field); ////////
+                xP = xP.Constrain(0,0,Width-1,Height-1,5);
+                storeField[i,j] = VectorFuncs.CubicFloatField(xP,getField); ////////
             }
         }
     }
 
     private void SemiLagrangian() {
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                Vector2 x_Pu = RungeKutta2(new Vector2(i-0.5f,j));
-                x_Pu = x_Pu.Constrain(0,0,width-1,height-1,1);
-                if (levelSet.GetDistance(x_Pu) < 0) {
-                    x_Pu = levelSet.FindClosest(x_Pu);
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                Vector2 xPu = RungeKutta2(new Vector2(i-0.5f,j));
+                xPu = xPu.Constrain(0,0,Width-1,Height-1,1);
+                if (_levelSet.GetDistance(xPu) < 0) {
+                    xPu = _levelSet.FindClosest(xPu);
                 }
-                x_Pu = x_Pu.Constrain(0,0,width-1,height-1,5);
-                u_vel_hold[i,j] = VectorFuncs.CubicFloatField(x_Pu,u_vel); ////////
+                xPu = xPu.Constrain(0,0,Width-1,Height-1,5);
+                UVelHold[i,j] = VectorFuncs.CubicFloatField(xPu,UVel); ////////
 
-                Vector2 x_Pv = RungeKutta2(new Vector2(i,j-0.5f));
-                x_Pv = x_Pv.Constrain(0,0,width-1,height-1,1);
-                if (levelSet.GetDistance(x_Pv) < 0) {
-                    x_Pv = levelSet.FindClosest(x_Pv);
+                Vector2 xPv = RungeKutta2(new Vector2(i,j-0.5f));
+                xPv = xPv.Constrain(0,0,Width-1,Height-1,1);
+                if (_levelSet.GetDistance(xPv) < 0) {
+                    xPv = _levelSet.FindClosest(xPv);
                 }
-                x_Pv = x_Pv.Constrain(0,0,width-1,height-1,5);
-                v_vel_hold[i,j] = VectorFuncs.CubicFloatField(x_Pv,v_vel); ////////
+                xPv = xPv.Constrain(0,0,Width-1,Height-1,5);
+                VVelHold[i,j] = VectorFuncs.CubicFloatField(xPv,VVel); ////////
             }
         }
 
-        for (int i = 0; i < height; i++) {
-            Vector2 x_Pul = RungeKutta2(new Vector2(width - 0.5f,i));
-            x_Pul = x_Pul.Constrain(0,0,width-1,height-1,1);
-            if (levelSet.GetDistance(x_Pul) < 0) {
-                x_Pul = levelSet.FindClosest(x_Pul);
+        for (int i = 0; i < Height; i++) {
+            Vector2 xPul = RungeKutta2(new Vector2(Width - 0.5f,i));
+            xPul = xPul.Constrain(0,0,Width-1,Height-1,1);
+            if (_levelSet.GetDistance(xPul) < 0) {
+                xPul = _levelSet.FindClosest(xPul);
             }
-            x_Pul = x_Pul.Constrain(0,0,width-1,height-1,5);
-            u_vel_hold[width,i] = VectorFuncs.CubicFloatField(x_Pul,u_vel); ////////
+            xPul = xPul.Constrain(0,0,Width-1,Height-1,5);
+            UVelHold[Width,i] = VectorFuncs.CubicFloatField(xPul,UVel); ////////
         }
 
-        for (int i = 0; i < width; i++) {
-            Vector2 x_Pvl = RungeKutta2(new Vector2(i, height - 0.5f));
-            x_Pvl = x_Pvl.Constrain(0,0,width-1,height-1,1);
-            if (levelSet.GetDistance(x_Pvl) < 0) {
-                x_Pvl = levelSet.FindClosest(x_Pvl);
+        for (int i = 0; i < Width; i++) {
+            Vector2 xPvl = RungeKutta2(new Vector2(i, Height - 0.5f));
+            xPvl = xPvl.Constrain(0,0,Width-1,Height-1,1);
+            if (_levelSet.GetDistance(xPvl) < 0) {
+                xPvl = _levelSet.FindClosest(xPvl);
             }
-            x_Pvl = x_Pvl.Constrain(0,0,width-1,height-1,5);
-            v_vel_hold[i,height] = VectorFuncs.CubicFloatField(x_Pvl,v_vel); ////////
+            xPvl = xPvl.Constrain(0,0,Width-1,Height-1,5);
+            VVelHold[i,Height] = VectorFuncs.CubicFloatField(xPvl,VVel); ////////
         }
     }
 
     //Forward Euler
     private void BodyForces() {
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                u_vel_hold[i,j] += u_bodyforce * timestep;
-                v_vel_hold[i,j] += v_bodyforce * timestep;
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                UVelHold[i,j] += _uBodyforce * _timestep;
+                VVelHold[i,j] += _vBodyforce * _timestep;
             }
         }
 
-        for (int i = 0; i < height; i++) {
-            u_vel_hold[width,i] += u_bodyforce * timestep;
+        for (int i = 0; i < Height; i++) {
+            UVelHold[Width,i] += _uBodyforce * _timestep;
         }
 
-        for (int i = 0; i < width; i++) {
-            v_vel_hold[i,height] += v_bodyforce * timestep;
+        for (int i = 0; i < Width; i++) {
+            VVelHold[i,Height] += _vBodyforce * _timestep;
         }
     }
 
-    private void Project(int max_iter = 200) {
+    private void Project(int maxIter = 200) {
         // 1. Calculate negative divergence with modifications at solid wall boundaries
         ulong time = GetTicksUsec();
-        CalculateRHS();
+        CalculateRhs();
         ulong timen = GetTicksUsec();
         Print($"Calc RHS Takes {timen - time} micro-seconds");
        // Print("RHS");
         // Note: Matrix Solves should use Doubles, not Floats
         // 2. Set the entries of A (Adiag, Ax, Ay)
-        CalculateLHS();
+        CalculateLhs();
         time = GetTicksUsec();
         Print($"Calc LHS Takes {time - timen} micro-seconds");
        // Print("LHS");
@@ -220,13 +220,13 @@ public class GridBLAS {
        // Print("Preconditioner");
 
 
-        pressure.Clear();
-        rhs.CopyTo(r);
+        _pressure.Clear();
+        _rhs.CopyTo(_r);
 
         time = GetTicksUsec();
         Print($"Clear Takes {time - timen} micro-seconds");
         // 4. Solve Ap = b with PCG
-        PCGAlgo(max_iter);
+        PcgAlgo(maxIter);
         timen = GetTicksUsec();
         Print($"PCGAlgo Takes {timen - time} micro-seconds");
        // Print("PCG");
@@ -243,24 +243,24 @@ public class GridBLAS {
     }
 
     // Calculate Negative Divergence (Right Hand Side of Equation)
-    private void CalculateRHS() {
-        double scale = 1 / dx;
+    private void CalculateRhs() {
+        double scale = 1 / Dx;
         int position;
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                position = i * width + j;
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                position = i * Width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    rhs[position] = -scale * (u_vel_hold[i+1,j] - u_vel_hold[i,j]
-                                        +v_vel_hold[i,j+1] - v_vel_hold[i,j]);
+                    _rhs[position] = -scale * (UVelHold[i+1,j] - UVelHold[i,j]
+                                        +VVelHold[i,j+1] - VVelHold[i,j]);
                     
-                    if (GetMaterialType(i-1,j) == Material.SOLID) {rhs[position] -= scale * (u_vel_hold[i,j] - GetUSolid(i,j));}
-                    if (GetMaterialType(i+1,j) == Material.SOLID) {rhs[position] += scale * (u_vel_hold[i+1,j] - GetUSolid(i+1,j));}
+                    if (GetMaterialType(i-1,j) == Material.SOLID) {_rhs[position] -= scale * (UVelHold[i,j] - GetUSolid(i,j));}
+                    if (GetMaterialType(i+1,j) == Material.SOLID) {_rhs[position] += scale * (UVelHold[i+1,j] - GetUSolid(i+1,j));}
 
-                    if (GetMaterialType(i,j-1) == Material.SOLID) {rhs[position] -= scale * (v_vel_hold[i,j] - GetVSolid(i,j));}
-                    if (GetMaterialType(i,j+1) == Material.SOLID) {rhs[position] += scale * (v_vel_hold[i,j+1] - GetVSolid(i,j+1));}
+                    if (GetMaterialType(i,j-1) == Material.SOLID) {_rhs[position] -= scale * (VVelHold[i,j] - GetVSolid(i,j));}
+                    if (GetMaterialType(i,j+1) == Material.SOLID) {_rhs[position] += scale * (VVelHold[i,j+1] - GetVSolid(i,j+1));}
                 }
                 else {
-                    rhs[position] = 0;
+                    _rhs[position] = 0;
                 }
             }
         }
@@ -282,28 +282,28 @@ public class GridBLAS {
     }
 
     // Calculate the varieties of A
-    private void CalculateLHS() {
+    private void CalculateLhs() {
         // Notes: Adiag is storing the coefficient for the relationship with ITSELF,
         // Ax and Ay are storing the coefficients for the relationships between two grid locations
-        double scale = timestep / (density * dx * dx);
+        double scale = _timestep / (_density * Dx * Dx);
         int position;
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                position = i * width + j;
-                Adiag[position] = 0;
-                Ax[position] = 0;
-                Ay[position] = 0;
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                position = i * Width + j;
+                _adiag[position] = 0;
+                _ax[position] = 0;
+                _ay[position] = 0;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
                     // x-axis
-                    if (GetMaterialType(i-1,j) == Material.LIQUID) { Adiag[position] += scale; }
-                    if (GetMaterialType(i+1,j) == Material.LIQUID) { Adiag[position] += scale; Ax[position] = -scale; }
-               else if (GetMaterialType(i+1,j) == Material.EMPTY ) { Adiag[position] += scale; }
+                    if (GetMaterialType(i-1,j) == Material.LIQUID) { _adiag[position] += scale; }
+                    if (GetMaterialType(i+1,j) == Material.LIQUID) { _adiag[position] += scale; _ax[position] = -scale; }
+               else if (GetMaterialType(i+1,j) == Material.EMPTY ) { _adiag[position] += scale; }
                     // y-axis
-                    if (GetMaterialType(i,j-1) == Material.LIQUID) { Adiag[position] += scale; }
-                    if (GetMaterialType(i,j+1) == Material.LIQUID) { Adiag[position] += scale; Ay[position] = -scale; }
-               else if (GetMaterialType(i,j+1) == Material.EMPTY ) { Adiag[position] += scale; }
-                    if (Adiag[position] == 0) {
-                        throw new ArithmeticException($"Calculating A: \n{Adiag[position]} {Ax[position]} {Ay[position]}: {GetMaterialType(i-1,j)}, {GetMaterialType(i+1,j)}, {GetMaterialType(i,j-1)}, {GetMaterialType(i,j+1)}");
+                    if (GetMaterialType(i,j-1) == Material.LIQUID) { _adiag[position] += scale; }
+                    if (GetMaterialType(i,j+1) == Material.LIQUID) { _adiag[position] += scale; _ay[position] = -scale; }
+               else if (GetMaterialType(i,j+1) == Material.EMPTY ) { _adiag[position] += scale; }
+                    if (_adiag[position] == 0) {
+                        throw new ArithmeticException($"Calculating A: \n{_adiag[position]} {_ax[position]} {_ay[position]}: {GetMaterialType(i-1,j)}, {GetMaterialType(i+1,j)}, {GetMaterialType(i,j-1)}, {GetMaterialType(i,j+1)}");
                     }
                 }
             }
@@ -319,21 +319,21 @@ public class GridBLAS {
         double safety = 0.25;
         double holder = 0;
         int position;
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                position = i * width + j;
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                position = i * Width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = Adiag[position] - Math.Pow(Ax[position-width] * precon[position-width],2)
-                                        - Math.Pow(Ay[position-1] * precon[position-1],2)
-                                        - tuning *(Ax[position-width] * (Ay[position-width]) * precon[position-width] * precon[position-width]
-                                                 + Ay[position-1    ] * (Ax[position-1    ]) * precon[position-1    ] * precon[position-1    ]);
-                    if (holder < safety * Adiag[position]) { holder = Adiag[position]; }
-                    precon[position] = 1 / Math.Sqrt(holder);
-                    if (double.IsNaN(precon[position])) {
-                        throw new ArithmeticException($"Precon is NaN: {holder} =  {Adiag[position]} - {Ax[position-width]} - {Ay[position-1]}");
+                    holder = _adiag[position] - Math.Pow(_ax[position-Width] * _precon[position-Width],2)
+                                        - Math.Pow(_ay[position-1] * _precon[position-1],2)
+                                        - tuning *(_ax[position-Width] * (_ay[position-Width]) * _precon[position-Width] * _precon[position-Width]
+                                                 + _ay[position-1    ] * (_ax[position-1    ]) * _precon[position-1    ] * _precon[position-1    ]);
+                    if (holder < safety * _adiag[position]) { holder = _adiag[position]; }
+                    _precon[position] = 1 / Math.Sqrt(holder);
+                    if (double.IsNaN(_precon[position])) {
+                        throw new ArithmeticException($"Precon is NaN: {holder} =  {_adiag[position]} - {_ax[position-Width]} - {_ay[position-1]}");
                     }
                 }
-                else { precon[position] = 0; } // more precisely, what should the default value be? 1 / 0?
+                else { _precon[position] = 0; } // more precisely, what should the default value be? 1 / 0?
             }
         }
         ulong timen  = GetTicksUsec();
@@ -347,27 +347,27 @@ public class GridBLAS {
         // solve Lq = r
         // I am tempted to replace every mention of q with z. Safe?
         int position;
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
-                position = i * width + j;
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
+                position = i * Width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = r[position] - Ax[position-width] * precon[position-width] * z[position - width]
-                                         - Ay[position-1] * precon[position-1] * z[position - 1];
-                    z[position] = holder * precon[position];
+                    holder = r[position] - _ax[position-Width] * _precon[position-Width] * _z[position - Width]
+                                         - _ay[position-1] * _precon[position-1] * _z[position - 1];
+                    _z[position] = holder * _precon[position];
                 }
-                else { z[position] = 0; } // what should the default value be? r * precon? 0? 
+                else { _z[position] = 0; } // what should the default value be? r * precon? 0? 
             }
         }
         // solve Ltranspose z = q
-        for (int i = width - 1; i >= 0; i--) {
-            for (int j = height - 1; j >= 0; j--) {
-                position = i * width + j;
+        for (int i = Width - 1; i >= 0; i--) {
+            for (int j = Height - 1; j >= 0; j--) {
+                position = i * Width + j;
                 if (GetMaterialType(i,j) == Material.LIQUID) {
-                    holder = z[position] - Ax[position] * precon[position] * z[position + width]
-                                         - Ay[position] * precon[position] * z[position + 1];
-                    z[position] = holder * precon[position];
+                    holder = _z[position] - _ax[position] * _precon[position] * _z[position + Width]
+                                         - _ay[position] * _precon[position] * _z[position + 1];
+                    _z[position] = holder * _precon[position];
                 }
-                else { z[position] = 0; }
+                else { _z[position] = 0; }
             }
         }
         // ulong timen  = GetTicksUsec();
@@ -375,17 +375,17 @@ public class GridBLAS {
     }
 
     private void ApplyPreconditioner() { // z = precon * r
-        var sr = r.Memory.Span;
-        var spre = precon.Memory.Span;
-        var sax = Ax.Memory.Span;
-        var say = Ay.Memory.Span;
-        var sz = z.Memory.Span;
-        var sls = levelSet.distance_field.Memory.Span;
+        var sr = _r.Memory.Span;
+        var spre = _precon.Memory.Span;
+        var sax = _ax.Memory.Span;
+        var say = _ay.Memory.Span;
+        var sz = _z.Memory.Span;
+        var sls = _levelSet.distance_field.Memory.Span;
         var pr = 0;
 
-        while (pr < height * width) {
+        while (pr < Height * Width) {
             if (sls[pr] > 0) { // material is liquid (needs revising)
-                sz[pr] = spre[pr] * (sr[pr] - sax[pr - width] * spre[pr - width] * sz[pr - width]
+                sz[pr] = spre[pr] * (sr[pr] - sax[pr - Width] * spre[pr - Width] * sz[pr - Width]
                                             - say[pr - 1    ] * spre[pr - 1    ] * sz[pr - 1    ]); 
             }
             else {
@@ -394,11 +394,11 @@ public class GridBLAS {
             pr++;
         }
 
-        pr = height * width - 1;
+        pr = Height * Width - 1;
 
         while (pr >= 0) {
             if (sls[pr] > 0) {
-                sz[pr] = spre[pr] * (sz[pr] - sax[pr] * spre[pr] * sz[pr + width]
+                sz[pr] = spre[pr] * (sz[pr] - sax[pr] * spre[pr] * sz[pr + Width]
                                             - say[pr] * spre[pr] * sz[pr + 1    ]);
             }
             else {
@@ -437,23 +437,23 @@ public class GridBLAS {
 
         var sr = r.Memory.Span;
         // var shv = holdervec.Memory.Span;
-        var sad = Adiag.Memory.Span;
-        var sax = Ax.Memory.Span;
-        var say = Ay.Memory.Span;
-        var sz = z.Memory.Span;
+        var sad = _adiag.Memory.Span;
+        var sax = _ax.Memory.Span;
+        var say = _ay.Memory.Span;
+        var sz = _z.Memory.Span;
 
-        var pr = width;
-        var prip = width << 1;
+        var pr = Width;
+        var prip = Width << 1;
         var prin = 0;
-        var prjp = width + 1;
-        var prjn = width - 1;
+        var prjp = Width + 1;
+        var prjn = Width - 1;
         // var pad  = width;
         // var pax  = width;
         // var paxin = 0;
         // var pay = width;
         // var payjn = width - 1;
 
-        while (prip < width * height)
+        while (prip < Width * Height)
         {
             sz[pr] = sr[pr  ] * sad[pr  ]
                    + sr[prip] * sax[pr  ]
@@ -483,7 +483,7 @@ public class GridBLAS {
         // Print($"ApplyA: {timen-time}");
     }
 
-    private double dotproduct(Vec<double> rhs,Vec<double> lhs) {
+    private double Dotproduct(Vec<double> rhs,Vec<double> lhs) {
         // double sum = 0.0;
         // sum = rhs * lhs;
 
@@ -497,8 +497,8 @@ public class GridBLAS {
 
         // obviously slow, but extremely consistant (which I value more)
         // the ddot does 8-10, but with common jumps 100-1000X
-        Vec.PointwiseMul(rhs,lhs,holdervec);
-        return holdervec.Sum();
+        Vec.PointwiseMul(rhs,lhs,_holdervec);
+        return _holdervec.Sum();
 
         // var sl = lhs.Memory.Span;
         // var sr = rhs.Memory.Span;
@@ -533,37 +533,37 @@ public class GridBLAS {
         // return sum;
     }
 
-    private unsafe void PCGAlgo(int max_iter = 200, double prev_max_r = 0) {
+    private unsafe void PcgAlgo(int maxIter = 200, double prevMaxR = 0) {
         // SETUP
         // tolerance tol
         double tol = 0.000001; // 10^-6
         // initial guess for pressure, residual r
 
         ApplyPreconditioner(); // z = precon * r
-        z.CopyTo(s);
+        _z.CopyTo(_s);
         
-        double sigma = dotproduct(z,r);
+        double sigma = Dotproduct(_z,_r);
         
         // ITERATIONS
-        for (int iter = 0; iter < max_iter; iter++) {
+        for (int iter = 0; iter < maxIter; iter++) {
             ulong time = GetTicksUsec();
 
-            ApplyA(s);
+            ApplyA(_s);
 
             ulong timea = GetTicksUsec();
 
             // Vec.PointwiseMul(z,s,holdervec);
             // double alpha = sigma / holdervec.Sum();
             // double alpha = sigma / z.Dot(s);
-            double alpha = sigma / dotproduct(z,s);
+            double alpha = sigma / Dotproduct(_z,_s);
 
             ulong timep = GetTicksUsec();
 
             // Regular Loop Takes 645 usec. This takes 120 usec (WOW)
-            Vec.Mul(s,alpha,holdervec);
-            pressure.AddInplace(holdervec);
-            Vec.Mul(z,alpha,holdervec);
-            r.SubInplace(holdervec);
+            Vec.Mul(_s,alpha,_holdervec);
+            _pressure.AddInplace(_holdervec);
+            Vec.Mul(_z,alpha,_holdervec);
+            _r.SubInplace(_holdervec);
             // for (int i = 0; i < width * height; i+=5) {
             //     pressure[i  ] = pressure[i  ] + alpha * s[i  ];
             //     pressure[i+1] = pressure[i+1] + alpha * s[i+1];
@@ -585,7 +585,7 @@ public class GridBLAS {
             ulong timen = GetTicksUsec();
 
             // 20 usec vs 90 usec for linq .Max() vs. 250 usec for simple loop
-            double max_r = r.InfinityNorm();
+            double maxR = _r.InfinityNorm();
             // double max_r = r.Max();
             // double max_r = r[0];
             // for (int i = 0; i < height * width; i++) {
@@ -595,8 +595,8 @@ public class GridBLAS {
             // }
 
 
-            if (max_r <= tol) {
-                Print($"Iterations: {iter}, (Residual {max_r})");
+            if (maxR <= tol) {
+                Print($"Iterations: {iter}, (Residual {maxR})");
                 return;
             }
 
@@ -614,7 +614,7 @@ public class GridBLAS {
             //     _sigma =  Blas.Ddot(z.Count, px, z.Stride, py, r.Stride);
             // }
 
-            double _sigma = dotproduct(z,r);
+            double sigmaNew = Dotproduct(_z,_r);
             // Vec.PointwiseMul(z,r,holdervec);
             // double _sigma = holdervec.Sum();
             // double _sigma = z.Dot(r);
@@ -622,48 +622,48 @@ public class GridBLAS {
 
             ulong times = GetTicksUsec();
 
-            alpha = _sigma / sigma;
+            alpha = sigmaNew / sigma;
             
             // Made it a lot more consistant (idk how, maybe not allocating more memory than needed?)
             // A bit slower (66-150 around vs 66 more frequent but with common spikes up to 10 msec)
             // 66 around a third of the time vs. 66 around a half of the time (with huge spikes)
-            s.MulInplace(alpha);
-            s.AddInplace(z);
+            _s.MulInplace(alpha);
+            _s.AddInplace(_z);
             // s = z + (alpha * s);
 
-            sigma = _sigma;
+            sigma = sigmaNew;
             ulong timer = GetTicksUsec();
             Print($"AA: {timea - time}, al: {timep - timea}, p+r: {timen - timep}, max_r: {timeq-timen}, APre: {timeb - timeq}, dot: {times - timeb}, s: {timer - times} Total: {timer - time}");
         }
 
-        Print($"Max Iterations Exceeded (Residual {prev_max_r})"); // report iteration limit exceeded
+        Print($"Max Iterations Exceeded (Residual {prevMaxR})"); // report iteration limit exceeded
     }
 
     // Pressure Gradient Update : Given Pressure, Apply it
     private void PressureGradientUpdate() {
-        float scale = timestep / (density * dx);
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < height; j++) {
+        float scale = _timestep / (_density * Dx);
+        for (int i = 0; i < Width; i++) {
+            for (int j = 0; j < Height; j++) {
                 // x-axis
                 if (GetMaterialType(i,j) == Material.LIQUID || GetMaterialType(i-1,j) == Material.LIQUID) {
-                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i-1,j) == Material.SOLID) { u_vel[i,j] = GetUSolid(i,j); }
-                    else { u_vel[i,j] = u_vel_hold[i,j] - scale * (float)(pressure[i*width + j] - pressure[(i-1) * width + j]); }
+                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i-1,j) == Material.SOLID) { UVel[i,j] = GetUSolid(i,j); }
+                    else { UVel[i,j] = UVelHold[i,j] - scale * (float)(_pressure[i*Width + j] - _pressure[(i-1) * Width + j]); }
                 }
-                else { u_vel[i,j] = 0; }
+                else { UVel[i,j] = 0; }
 
                 // y-axis
                 if (GetMaterialType(i,j) == Material.LIQUID || GetMaterialType(i,j-1) == Material.LIQUID) {
-                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i,j-1) == Material.SOLID) { v_vel[i,j] = GetVSolid(i,j); }
-                    else { v_vel[i,j] = v_vel_hold[i,j] - scale * (float)(pressure[i*width + j] - pressure[i * width + j-1]); }
+                    if (GetMaterialType(i,j) == Material.SOLID || GetMaterialType(i,j-1) == Material.SOLID) { VVel[i,j] = GetVSolid(i,j); }
+                    else { VVel[i,j] = VVelHold[i,j] - scale * (float)(_pressure[i*Width + j] - _pressure[i * Width + j-1]); }
                 }
-                else { v_vel[i,j] = 0; }
+                else { VVel[i,j] = 0; }
             }
         }
     }
 
     //MaterialType: Return 0 for Solid, 1 for Fluid, 2 for Empty (Don't know how to check if it is empty yet)
     public Material GetMaterialType(int x, int y) {
-        if (levelSet.GetDistanceOnGrid(x,y) <= 0.1) {
+        if (_levelSet.GetDistanceOnGrid(x,y) <= 0.1) {
             return Material.SOLID;
         }
         return Material.LIQUID;
@@ -681,19 +681,19 @@ public class GridBLAS {
     }
 
     // Breadth-First Search To Extrapolate Values
-    private void ExtrapolateField(float[,] float_field) {
-        int[,] markers = new int[float_field.GetLength(0),float_field.GetLength(1)];
-        List<ValueTuple<int,int> > Wave = new List<ValueTuple<int,int>>();
+    private void ExtrapolateField(float[,] floatField) {
+        int[,] markers = new int[floatField.GetLength(0),floatField.GetLength(1)];
+        List<ValueTuple<int,int> > wave = new List<ValueTuple<int,int>>();
         int i, j;
 
-        for (i = 1; i < width-1; i++) {
-            for (j = 1; j < height-1; j++) {
-                if (double.IsNaN(float_field[i,j])) {
-                    if (double.IsNaN(float_field[i-1,j]) && double.IsNaN(float_field[i+1,j]) && double.IsNaN(float_field[i,j-1]) && double.IsNaN(float_field[i,j+1])) {
+        for (i = 1; i < Width-1; i++) {
+            for (j = 1; j < Height-1; j++) {
+                if (double.IsNaN(floatField[i,j])) {
+                    if (double.IsNaN(floatField[i-1,j]) && double.IsNaN(floatField[i+1,j]) && double.IsNaN(floatField[i,j-1]) && double.IsNaN(floatField[i,j+1])) {
                         markers[i,j] = int.MaxValue;
                         continue;
                     }
-                    Wave.Add((i,j));
+                    wave.Add((i,j));
                     markers[i,j] = 1;
                 }
                 else {
@@ -701,34 +701,34 @@ public class GridBLAS {
                 }
             }
         }
-        for (i = 0; i < width; i++) {
+        for (i = 0; i < Width; i++) {
             markers[i,0] = int.MaxValue;
-            markers[i,height-1] = int.MaxValue;
+            markers[i,Height-1] = int.MaxValue;
         }
-        for (i = 0; i < height; i++) {
+        for (i = 0; i < Height; i++) {
             markers[0,i] = int.MaxValue;
-            markers[width-1,i] = int.MaxValue;
+            markers[Width-1,i] = int.MaxValue;
         }
         // to prevent the compiler from compiling this away
         int t = 0;
-        while (t < Wave.Count) {
-            i = Wave[t].Item1;
-            j = Wave[t].Item2;
-            float_field[i,j] = 0;
+        while (t < wave.Count) {
+            i = wave[t].Item1;
+            j = wave[t].Item2;
+            floatField[i,j] = 0;
             int total = 0;
-            if (i   != 0      && markers[i-1,j] < markers[i,j]) { float_field[i,j] += float_field[i-1,j]; total++; }
-            if (i+1 != width  && markers[i+1,j] < markers[i,j]) { float_field[i,j] += float_field[i+1,j]; total++; }
-            if (j   != 0      && markers[i,j-1] < markers[i,j]) { float_field[i,j] += float_field[i,j-1]; total++; }
-            if (j+1 != height && markers[i,j+1] < markers[i,j]) { float_field[i,j] += float_field[i,j+1]; total++; }
-            float_field[i,j] /= total;
+            if (i   != 0      && markers[i-1,j] < markers[i,j]) { floatField[i,j] += floatField[i-1,j]; total++; }
+            if (i+1 != Width  && markers[i+1,j] < markers[i,j]) { floatField[i,j] += floatField[i+1,j]; total++; }
+            if (j   != 0      && markers[i,j-1] < markers[i,j]) { floatField[i,j] += floatField[i,j-1]; total++; }
+            if (j+1 != Height && markers[i,j+1] < markers[i,j]) { floatField[i,j] += floatField[i,j+1]; total++; }
+            floatField[i,j] /= total;
             if (total == 0) {
                 Print("Total is Zero, add case");
             }
 
-            if (i   != 0      && markers[i-1,j] == int.MaxValue) { Wave.Add((i-1,j)); markers[i-1,j] = markers[i,j] + 1; }
-            if (i+1 != width  && markers[i+1,j] == int.MaxValue) { Wave.Add((i+1,j)); markers[i+1,j] = markers[i,j] + 1; }
-            if (j   != 0      && markers[i,j-1] == int.MaxValue) { Wave.Add((i,j-1)); markers[i,j-1] = markers[i,j] + 1; }
-            if (j+1 != height && markers[i,j+1] == int.MaxValue) { Wave.Add((i,j+1)); markers[i,j+1] = markers[i,j] + 1; }
+            if (i   != 0      && markers[i-1,j] == int.MaxValue) { wave.Add((i-1,j)); markers[i-1,j] = markers[i,j] + 1; }
+            if (i+1 != Width  && markers[i+1,j] == int.MaxValue) { wave.Add((i+1,j)); markers[i+1,j] = markers[i,j] + 1; }
+            if (j   != 0      && markers[i,j-1] == int.MaxValue) { wave.Add((i,j-1)); markers[i,j-1] = markers[i,j] + 1; }
+            if (j+1 != Height && markers[i,j+1] == int.MaxValue) { wave.Add((i,j+1)); markers[i,j+1] = markers[i,j] + 1; }
 
             t++;
         }
@@ -740,29 +740,29 @@ public class GridBLAS {
 
     //2nd Order Runge-Kutta Method
     private Vector2 RungeKutta2(Vector2 position) {
-        Vector2 x_mid = position - 0.5f * timestep * VectorFuncs.LerpVelocityField(position.Constrain(0,0,width-1,height-1,1),
-                                                                                   u_vel, v_vel);
-        return position - timestep * VectorFuncs.LerpVelocityField(x_mid.Constrain(0,0,width-1,height-1,1), u_vel, v_vel);
+        Vector2 xMid = position - 0.5f * _timestep * VectorFuncs.LerpVelocityField(position.Constrain(0,0,Width-1,Height-1,1),
+                                                                                   UVel, VVel);
+        return position - _timestep * VectorFuncs.LerpVelocityField(xMid.Constrain(0,0,Width-1,Height-1,1), UVel, VVel);
     }
 
     private float MaxSpeed() {
-        float maxu = u_vel.Cast<float>().Max();
-        float maxv = v_vel.Cast<float>().Max();
+        float maxu = UVel.Cast<float>().Max();
+        float maxv = VVel.Cast<float>().Max();
         Print($"Max Speed: {Sqrt(maxu * maxu + maxv * maxv)}");
         return maxu * maxu + maxv * maxv;
     }
 
     private float MaxSpeedHold() {
-        float maxu = u_vel_hold.Cast<float>().Max();
-        float maxv = v_vel_hold.Cast<float>().Max();
+        float maxu = UVelHold.Cast<float>().Max();
+        float maxv = VVelHold.Cast<float>().Max();
         Print($"Max Speed: {Sqrt(maxu * maxu + maxv * maxv)}");
         return maxu * maxu + maxv * maxv;
     }
 
     //Time step for Semi-Langrangian
     private float MaxAdvectTimestep() {
-        float vel_max = Sqrt(MaxSpeed()) + Sqrt(5*dx*Sqrt(u_bodyforce*u_bodyforce + v_bodyforce*v_bodyforce));
-        return (5 * dx) / (vel_max);
+        float velMax = Sqrt(MaxSpeed()) + Sqrt(5*Dx*Sqrt(_uBodyforce*_uBodyforce + _vBodyforce*_vBodyforce));
+        return (5 * Dx) / (velMax);
         // that is the max for the advect step
     }
 }

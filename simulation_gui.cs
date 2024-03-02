@@ -53,10 +53,10 @@ public partial class simulation_gui : Node2D
 	public override void _Draw()
     {
 		ulong time = Time.GetTicksUsec();
-		DrawRect(new Rect2(0,0,grid.width,grid.height),Colors.White);
-		for (int i = 0; i < grid.width; i++)
+		DrawRect(new Rect2(0,0,grid.Width,grid.Height),Colors.White);
+		for (int i = 0; i < grid.Width; i++)
 		{
-			for (int j = 0; j < grid.height; j++)
+			for (int j = 0; j < grid.Height; j++)
 			{
 				if (grid.GetMaterialType(i,j) == global::Material.SOLID) {
 					DrawRect(new Rect2(i-0.5f,j-0.5f,1,1), Colors.SlateGray);
@@ -64,13 +64,13 @@ public partial class simulation_gui : Node2D
 			}
 		}
 
-        for (int i = 0; i < grid.width; i+=sampleScale)
+        for (int i = 0; i < grid.Width; i+=sampleScale)
 		{
-			for (int j = 0; j < grid.height; j+=sampleScale)
+			for (int j = 0; j < grid.Height; j+=sampleScale)
 			{
 				Godot.Vector2 from = new Godot.Vector2(i,j);
-				Godot.Vector2 to   = from + new Godot.Vector2(grid.u_vel[i,j],grid.v_vel[i,j]) * sampleScale;
-				Color color = new Color(Mathf.Abs(grid.u_vel[i,j]),0,Mathf.Abs(grid.v_vel[i,j]));
+				Godot.Vector2 to   = from + new Godot.Vector2(grid.UVel[i,j],grid.VVel[i,j]) * sampleScale;
+				Color color = new Color(Mathf.Abs(grid.UVel[i,j]),0,Mathf.Abs(grid.VVel[i,j]));
 
 				DrawCircle(from, sampleScale / 9f, Colors.Green);
 				DrawCircle(to,sampleScale / 8f,color);

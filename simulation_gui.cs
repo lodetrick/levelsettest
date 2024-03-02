@@ -11,7 +11,7 @@ public partial class simulation_gui : Node2D
 		
 		grid = new GridBLAS(200,200,0.01f);
 		level_image = Image.Create(200,200,false,Image.Format.Rgb8);
-		QueueRedraw();
+		Step();
 		// ImageFromSet(grid.pressure,grid.u_vel_hold,grid.v_vel_hold);
 		// UpdateImage();
 	}

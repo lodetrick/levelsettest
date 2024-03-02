@@ -10,9 +10,6 @@ using static Godot.GD;
 using static Godot.Time;
 
 public class GridBLAS {
-
-    private bool ready = false;
-
     //MAC Grid
     public Vec<double> pressure;
     public float[,] u_vel, u_vel_hold, v_vel, v_vel_hold;
@@ -92,7 +89,6 @@ public class GridBLAS {
         timestep = (5 * dx) / (vel_max);
         Print($"Timestep: {timestep}");
         Project(1000); // make sure initial velocities are divergence-free
-        Project(1000);
     }
 
     public void PrintData(float x, float y) {
@@ -123,7 +119,6 @@ public class GridBLAS {
         //using_hold = !using_hold;
         //Print("Smoke Advect");
 
-        ready = true;
         SemiLagrangian(); // u_vel -> u_vel_hold
         //Print("Velocity Advect");
         BodyForces();     // u_vel_hold -> u_vel_hold
@@ -387,13 +382,11 @@ public class GridBLAS {
         var sz = z.Memory.Span;
         var sls = levelSet.distance_field.Memory.Span;
         var pr = 0;
-        var holder = 0.0;
 
-        while (pr < sz.Length) {
+        while (pr < height * width) {
             if (sls[pr] > 0) { // material is liquid (needs revising)
-                holder = sr[pr] - sax[pr - width] * spre[pr - width] * sz[pr - width]
-                                - say[pr - 1    ] * spre[pr - 1    ] * sz[pr - 1    ];
-                sz[pr] = holder * spre[pr]; 
+                sz[pr] = spre[pr] * (sr[pr] - sax[pr - width] * spre[pr - width] * sz[pr - width]
+                                            - say[pr - 1    ] * spre[pr - 1    ] * sz[pr - 1    ]); 
             }
             else {
                 sz[pr] = 0;
@@ -405,9 +398,8 @@ public class GridBLAS {
 
         while (pr >= 0) {
             if (sls[pr] > 0) {
-                holder = sz[pr] - sax[pr] * spre[pr] * sz[pr + width]
-                                - say[pr] * spre[pr] * sz[pr + 1    ];
-                sz[pr] = holder * spre[pr];
+                sz[pr] = spre[pr] * (sz[pr] - sax[pr] * spre[pr] * sz[pr + width]
+                                            - say[pr] * spre[pr] * sz[pr + 1    ]);
             }
             else {
                 sz[pr] = 0;
@@ -440,42 +432,85 @@ public class GridBLAS {
         //     }
         // }
 
+        // Vec.PointwiseMul(r,Adiag,z);
+        // Vec.PointwiseMul(r,Ay,holdervec);
+
         var sr = r.Memory.Span;
+        // var shv = holdervec.Memory.Span;
         var sad = Adiag.Memory.Span;
         var sax = Ax.Memory.Span;
         var say = Ay.Memory.Span;
         var sz = z.Memory.Span;
-        var pr = width;
-        
-        double ril = sr[pr-1];
-        double rcu = sr[pr  ];
-        double rir = sr[pr+1];
 
-        while (pr < sz.Length - width)
+        var pr = width;
+        var prip = width << 1;
+        var prin = 0;
+        var prjp = width + 1;
+        var prjn = width - 1;
+        // var pad  = width;
+        // var pax  = width;
+        // var paxin = 0;
+        // var pay = width;
+        // var payjn = width - 1;
+
+        while (prip < width * height)
         {
-            sz[pr] = rcu * sad[pr      ]
+            sz[pr] = sr[pr  ] * sad[pr  ]
+                   + sr[prip] * sax[pr  ]
+                   + sr[prin] * sax[prin]
+                   + sr[prjp] * say[pr  ]
+                   + sr[prjn] * say[prjn];
+        /*
+            sz[pr] = sr[pr      ] * sad[pr      ]
                    + sr[pr+width] * sax[pr      ]
                    + sr[pr-width] * sax[pr-width]
-                   + rir * say[pr      ]
-                   + ril * say[pr-1    ];
+                   + sr[pr+1    ] * say[pr      ]
+                   + sr[pr-1    ] * say[pr-1    ];
+        */
             
             pr++;
-            ril = rcu;
-            rcu = rir;
-            rir = sr[pr+1];
+            prip++;
+            prin++;
+            prjp++;
+            prjn++;
+            // pad++;
+            // pax++;
+            // paxin++;
+            // pay++;
+            // payjn++;
         }
         // ulong timen  = GetTicksUsec();
         // Print($"ApplyA: {timen-time}");
     }
 
     private double dotproduct(Vec<double> rhs,Vec<double> lhs) {
-        //double sum = 0.0;
+        // double sum = 0.0;
         // sum = rhs * lhs;
+
+        // Span<double> span = lhs.Memory.Span;
+        // Span<double> span2 = rhs.Memory.Span;
+        // for (int pr = 0; pr < span.Length; pr++)
+        // {
+        //     sum += span[pr] * span2[pr];
+        // }
+        // return sum;
 
         // obviously slow, but extremely consistant (which I value more)
         // the ddot does 8-10, but with common jumps 100-1000X
         Vec.PointwiseMul(rhs,lhs,holdervec);
         return holdervec.Sum();
+
+        // var sl = lhs.Memory.Span;
+        // var sr = rhs.Memory.Span;
+        // var pr = 0;
+        // double sum = 0.0;
+
+        // while (pr < sl.Length)
+        // {
+        //     sum += sl[pr] * sr[pr];
+        //     pr++;
+        // }
+        // return sum;
         // return rhs.Dot(lhs);
         // foreach(var value in holdervec.GetUnsafeFastIndexer()) {
         //     sum += value;
@@ -499,13 +534,6 @@ public class GridBLAS {
     }
 
     private unsafe void PCGAlgo(int max_iter = 200, double prev_max_r = 0) {
-        var sr = s.Memory.Span;
-        var sad = Adiag.Memory.Span;
-        var sax = Ax.Memory.Span;
-        var say = Ay.Memory.Span;
-        var sz = z.Memory.Span;
-        var pr = width;
-        double ril,rcu,rir;
         // SETUP
         // tolerance tol
         double tol = 0.000001; // 10^-6
@@ -519,30 +547,15 @@ public class GridBLAS {
         // ITERATIONS
         for (int iter = 0; iter < max_iter; iter++) {
             ulong time = GetTicksUsec();
-            pr = width;
-        
-            ril = sr[pr-1];
-            rcu = sr[pr  ];
-            rir = sr[pr+1];
 
-            while (pr < sz.Length - width)
-            {
-                sz[pr] = rcu          * sad[pr      ]
-                       + sr[pr+width] * sax[pr      ]
-                       + sr[pr-width] * sax[pr-width]
-                       + rir          * say[pr      ]
-                       + ril          * say[pr-1    ];
-                
-                pr++;
-                ril = rcu;
-                rcu = rir;
-                rir = sr[pr+1];
-            }
+            ApplyA(s);
+
             ulong timea = GetTicksUsec();
 
-            Vec.PointwiseMul(z,s,holdervec);
-            double alpha = sigma / holdervec.Sum();
+            // Vec.PointwiseMul(z,s,holdervec);
+            // double alpha = sigma / holdervec.Sum();
             // double alpha = sigma / z.Dot(s);
+            double alpha = sigma / dotproduct(z,s);
 
             ulong timep = GetTicksUsec();
 
@@ -601,8 +614,9 @@ public class GridBLAS {
             //     _sigma =  Blas.Ddot(z.Count, px, z.Stride, py, r.Stride);
             // }
 
-            Vec.PointwiseMul(z,r,holdervec);
-            double _sigma = holdervec.Sum();
+            double _sigma = dotproduct(z,r);
+            // Vec.PointwiseMul(z,r,holdervec);
+            // double _sigma = holdervec.Sum();
             // double _sigma = z.Dot(r);
             // double _sigma = z * r;
 

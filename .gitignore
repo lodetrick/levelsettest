@@ -2,3 +2,6 @@
 .godot/
 .vscode
 OpenBLAS-0.3.26
+bin/
+lib/
+include/

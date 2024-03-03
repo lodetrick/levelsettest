@@ -5,3 +5,4 @@ OpenBLAS-0.3.26
 bin/
 lib/
 include/
+.idea/
